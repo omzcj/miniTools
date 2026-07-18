@@ -35,13 +35,15 @@ cp "$ROOT/THIRD_PARTY_NOTICES.md" "$CONTENTS_DIR/Resources/THIRD_PARTY_NOTICES.m
 SIGN_ARGUMENTS=(--force --sign "$SIGN_IDENTITY")
 if [[ "$SIGN_IDENTITY" == "Developer ID Application:"* ]]; then
     SIGN_ARGUMENTS+=(--options runtime --timestamp)
+elif [[ "$SIGN_IDENTITY" == "-" ]]; then
+    SIGN_ARGUMENTS+=(--options runtime --timestamp=none)
 fi
 
 codesign "${SIGN_ARGUMENTS[@]}" "$APP_DIR"
 codesign --verify --strict "$APP_DIR"
 
 DESIGNATED_REQUIREMENT="$(codesign -d -r- "$APP_DIR" 2>&1)"
-if [[ "$DESIGNATED_REQUIREMENT" == *"designated => cdhash"* ]]; then
+if [[ "$SIGN_IDENTITY" != "-" && "$DESIGNATED_REQUIREMENT" == *"designated => cdhash"* ]]; then
     echo "The built app has a hash-only identity; refusing an unstable build." >&2
     exit 1
 fi

@@ -66,8 +66,8 @@ swift test
 ## 发行与 Homebrew
 
 推送 `vX.Y.Z` 标签后，GitHub Actions 会构建 arm64 / x86_64 通用应用，完成
-Developer ID 签名、Apple 公证及票据装订，并生成 GitHub Release、SHA-256 和对应的
-Homebrew Cask 文件。证书配置、发版步骤和 Homebrew Tap 接入方法见
+ad-hoc 签名，并生成 GitHub Release 和 SHA-256。Homebrew Tap 会定期检查 Release，
+通过 Autobump PR 更新 Cask。首次运行的 Gatekeeper 操作和发版步骤见
 [DISTRIBUTION.md](DISTRIBUTION.md)。
 
 ## 代码结构

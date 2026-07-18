@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Show toolchain
         run: |
@@ -35,11 +35,6 @@ jobs:
           git diff --check
           plutil -lint Support/Info.plist
           bash -n Scripts/*.sh
-          Scripts/render-homebrew-cask.sh \
-            0.1.0 \
-            0000000000000000000000000000000000000000000000000000000000000000 \
-            "$RUNNER_TEMP/minitools.rb"
-          ruby -c "$RUNNER_TEMP/minitools.rb"
 
       - name: Run tests
         run: swift test
