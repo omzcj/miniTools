@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Validate release tag
         id: metadata
@@ -127,7 +127,7 @@ jobs:
           fi
 
       - name: Check out Homebrew Tap
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: omzcj/homebrew-omzcj
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
