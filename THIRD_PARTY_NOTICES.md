@@ -1,5 +1,12 @@
 # Third-party artwork notices
 
+## Smartisan-inspired hammer artwork
+
+The application and status-bar icons are based on the hammer mark associated
+with Smartisan. No trademark or redistribution licence is currently included in
+this repository. Confirm permission to distribute this artwork, or replace it
+with original artwork, before publishing binaries to the public.
+
 ## Sharingan reference artwork
 
 The Sharingan cursor-effect artwork in `SharinganArtworkData.swift` is adapted from
