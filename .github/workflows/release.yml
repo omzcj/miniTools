@@ -52,12 +52,14 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           : "${DEVELOPER_ID_CERTIFICATE_BASE64:?Configure the certificate secret.}"
           : "${DEVELOPER_ID_CERTIFICATE_PASSWORD:?Configure the certificate password.}"
           : "${APPLE_API_KEY_ID:?Configure the App Store Connect API key ID.}"
           : "${APPLE_API_ISSUER_ID:?Configure the App Store Connect issuer ID.}"
           : "${APPLE_API_PRIVATE_KEY:?Configure the App Store Connect private key.}"
+          : "${HOMEBREW_TAP_TOKEN:?Configure the Homebrew Tap token.}"
 
           KEYCHAIN_PATH="$RUNNER_TEMP/miniTools-build.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
@@ -123,6 +125,27 @@ jobs:
               --title "miniTools $VERSION" \
               --generate-notes
           fi
+
+      - name: Check out Homebrew Tap
+        uses: actions/checkout@v6
+        with:
+          repository: omzcj/homebrew-omzcj
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-omzcj
+
+      - name: Publish Homebrew cask
+        run: |
+          install -m 0644 dist/minitools.rb homebrew-omzcj/Casks/minitools.rb
+          cd homebrew-omzcj
+          git config user.name "张朝杰"
+          git config user.email "735892586@qq.com"
+          git add Casks/minitools.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew cask already matches miniTools $VERSION."
+            exit 0
+          fi
+          git commit -m "Update miniTools to $VERSION"
+          git push origin HEAD:main
 
       - name: Remove temporary signing material
         if: always()

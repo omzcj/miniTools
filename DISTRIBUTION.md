@@ -40,6 +40,7 @@ base64 -i DeveloperID.p12 | pbcopy
 | `APPLE_API_KEY_ID` | App Store Connect API Key ID |
 | `APPLE_API_ISSUER_ID` | App Store Connect Issuer ID |
 | `APPLE_API_PRIVATE_KEY` | `.p8` 文件的完整文本，包括首尾标记 |
+| `HOMEBREW_TAP_TOKEN` | 对 `omzcj/homebrew-omzcj` 的 Contents 具有读写权限的 fine-grained PAT |
 
 流水线只在标签发布任务中导入证书，并使用临时 Keychain；任务结束后会删除临时证书和私钥文件。
 
@@ -57,16 +58,16 @@ git push origin v0.1.0
 
 ## Homebrew Tap
 
-建议单独创建 `omzcj/homebrew-tap` 仓库，并将 Release 中生成的 `minitools.rb` 放到其
-`Casks/minitools.rb`。Homebrew 对 Tap 仓库使用 `homebrew-` 前缀，用户即可执行：
+Release 完成后，工作流会把生成的 `minitools.rb` 自动提交到
+`omzcj/homebrew-omzcj` 的 `Casks/minitools.rb`。用户即可执行：
 
 ```bash
-brew install --cask omzcj/tap/minitools
+brew install --cask omzcj/omzcj/minitools
 ```
 
 Cask 模板位于 `Packaging/Homebrew/minitools.rb.template`，发布脚本会自动写入版本与
-ZIP 的 SHA-256。创建 Tap 后，可以再给 Release 工作流增加一个仅能写入
-`omzcj/homebrew-tap` 的细粒度 Token，实现自动更新 Cask。
+ZIP 的 SHA-256。`HOMEBREW_TAP_TOKEN` 只需授权 `homebrew-omzcj` 仓库的 Contents
+读写权限，不需要访问其他仓库。
 
 ## 公开发行前检查
 
