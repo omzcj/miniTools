@@ -1,5 +1,7 @@
 # miniTools
 
+[![CI](https://github.com/omzcj/miniTools/actions/workflows/ci.yml/badge.svg)](https://github.com/omzcj/miniTools/actions/workflows/ci.yml)
+
 一个面向个人高频场景的轻量级 macOS 编码与转换工具。复制文本或图片后，通过全局快捷键打开操作面板，选择动作并回车，结果会直接写回剪贴板。
 
 ## 当前能力
@@ -61,6 +63,13 @@ CODE_SIGN_IDENTITY="Apple Development: Your Name (XXXXXXXXXX)" ./Scripts/build-a
 swift test
 ```
 
+## 发行与 Homebrew
+
+推送 `vX.Y.Z` 标签后，GitHub Actions 会构建 arm64 / x86_64 通用应用，完成
+Developer ID 签名、Apple 公证及票据装订，并生成 GitHub Release、SHA-256 和对应的
+Homebrew Cask 文件。证书配置、发版步骤和 Homebrew Tap 接入方法见
+[DISTRIBUTION.md](DISTRIBUTION.md)。
+
 ## 代码结构
 
 - `App`：应用生命周期、状态栏菜单和功能编排
@@ -70,6 +79,8 @@ swift test
 - `Features/WindowManagement`：窗口几何、辅助功能窗口控制和鼠标跨屏
 - `Shared`：辅助功能访问、全局快捷键、设置存储和通用 UI
 
-第三方图稿来源与许可说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+项目原创代码采用 [MIT License](LICENSE)。第三方图稿不包含在该许可授权范围内，来源与
+许可状态见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。公开发行前仍需确认图标与
+全部动画图稿的再分发权利。
 
 MVP 严格读取剪贴板的第一个元素。图片识别使用 Vision，首次处理大图时可能需要短暂等待；识别期间仍可直接选择格式转换或压缩操作。
