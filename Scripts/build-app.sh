@@ -7,7 +7,6 @@ EXECUTABLE_NAME="MiniTools"
 BUILD_CONFIGURATION="${1:-${BUILD_CONFIGURATION:-release}}"
 BUILD_DIR="$ROOT/.build/$BUILD_CONFIGURATION"
 APP_DIR="$ROOT/dist/$APP_NAME.app"
-CONTENTS_DIR="$APP_DIR/Contents"
 
 case "$BUILD_CONFIGURATION" in
     debug|release) ;;
@@ -71,22 +70,6 @@ SIGN_IDENTITY="$(resolve_signing_identity)"
 cd "$ROOT"
 swift build -c "$BUILD_CONFIGURATION"
 
-rm -rf "$APP_DIR"
-mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
-cp "$BUILD_DIR/$EXECUTABLE_NAME" "$CONTENTS_DIR/MacOS/$EXECUTABLE_NAME"
-cp "$ROOT/Support/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$ROOT/Support/Assets/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
-cp "$ROOT/Support/Assets/SmartisanStatusIcon.png" \
-    "$CONTENTS_DIR/Resources/SmartisanStatusIcon.png"
-
-codesign --force --sign "$SIGN_IDENTITY" "$APP_DIR"
-codesign --verify --strict "$APP_DIR"
-
-DESIGNATED_REQUIREMENT="$(codesign -d -r- "$APP_DIR" 2>&1)"
-if [[ "$DESIGNATED_REQUIREMENT" == *"designated => cdhash"* ]]; then
-    echo "The built app still has a hash-only identity; refusing an unstable build." >&2
-    exit 1
-fi
-
-echo "Built $APP_DIR ($BUILD_CONFIGURATION)"
-echo "Signed with $SIGN_IDENTITY"
+CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+    "$ROOT/Scripts/assemble-app.sh" "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_DIR"
+echo "Configuration: $BUILD_CONFIGURATION"

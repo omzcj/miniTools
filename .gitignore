@@ -3,3 +3,5 @@
 dist/
 *.xcuserstate
 .swiftpm/xcode/package.xcworkspace/xcuserdata/
+*.p12
+AuthKey_*.p8
