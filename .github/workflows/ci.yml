@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Validate repository
+        run: |
+          git diff --check
+          plutil -lint Support/Info.plist
+          bash -n Scripts/*.sh
+          Scripts/render-homebrew-cask.sh \
+            0.1.0 \
+            0000000000000000000000000000000000000000000000000000000000000000 \
+            "$RUNNER_TEMP/minitools.rb"
+          ruby -c "$RUNNER_TEMP/minitools.rb"
+
+      - name: Run tests
+        run: swift test
+
+      - name: Cross-compile Intel release
+        run: |
+          swift build \
+            -c release \
+            --triple x86_64-apple-macosx26.0 \
+            --scratch-path .build/ci-x86_64
