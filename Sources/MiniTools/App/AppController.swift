@@ -1,0 +1,104 @@
+import AppKit
+
+@MainActor
+final class AppController: NSObject {
+    private let applicationContext: ApplicationContext
+    private var settings: AppSettings { applicationContext.settings }
+    private let statusMenuController = StatusMenuController()
+    private let windowControlController = WindowControlController()
+    private let featurePanelController: FeaturePanelController
+    private lazy var commandDispatcher = AppCommandDispatcher(
+        settings: settings,
+        featurePanelController: featurePanelController,
+        windowControlController: windowControlController
+    )
+
+    private var shortcutCoordinator: GlobalShortcutCoordinator!
+    private var mouseBindingCoordinator: MouseBindingCoordinator!
+    private var settingsWindowController: SettingsWindowController?
+    private var featurePanelPreparationTask: Task<Void, Never>?
+
+    init(applicationContext: ApplicationContext) {
+        self.applicationContext = applicationContext
+        featurePanelController = FeaturePanelController(
+            settings: applicationContext.settings
+        )
+        super.init()
+    }
+
+    func start() {
+        shortcutCoordinator = GlobalShortcutCoordinator(
+            settings: settings,
+            showPanel: { [weak self] in
+                self?.commandDispatcher.perform(.toggleLastFeaturePanel)
+            },
+            performWindowControl: { [weak self] id in
+                self?.commandDispatcher.perform(.windowControl(id))
+            }
+        )
+        mouseBindingCoordinator = MouseBindingCoordinator(
+            settings: settings,
+            performCommand: { [weak self] command in
+                self?.commandDispatcher.perform(command)
+            }
+        )
+        shortcutCoordinator.onStateChanged = { [weak self] in
+            self?.updateStatusMenu()
+        }
+        applicationContext.install(shortcutCoordinator: shortcutCoordinator)
+        applicationContext.install(mouseBindingCoordinator: mouseBindingCoordinator)
+
+        settingsWindowController = SettingsWindowController(
+            settings: settings,
+            shortcutCoordinator: shortcutCoordinator,
+            mouseBindingCoordinator: mouseBindingCoordinator,
+            previewCursorHighlight: applicationContext.previewCursorHighlight
+        )
+        featurePanelController.onOpenSettings = { [weak self] in
+            self?.showSettings()
+        }
+
+        statusMenuController.onOpenPanel = { [weak self] in
+            self?.featurePanelController.toggleLastUsedPanel()
+        }
+        statusMenuController.onOpenSettings = { [weak self] in
+            self?.showSettings()
+        }
+        statusMenuController.onMenuWillOpen = { [weak self] in
+            self?.updateStatusMenu()
+        }
+        statusMenuController.start()
+        shortcutCoordinator.start()
+        mouseBindingCoordinator.start()
+        updateStatusMenu()
+
+        // Constructing an NSHostingView while SwiftUI is still laying out the app's
+        // Settings scene can re-enter AppKit layout. Prewarm on the next main-actor
+        // turn so the first panel presentation is still ready without that overlap.
+        featurePanelPreparationTask = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            self?.featurePanelController.prepare()
+        }
+    }
+
+    @objc func showSettings() {
+        featurePanelController.close(restoreFocus: false)
+        settingsWindowController?.show()
+    }
+
+    func stop() {
+        featurePanelPreparationTask?.cancel()
+        featurePanelPreparationTask = nil
+        mouseBindingCoordinator?.stop()
+        featurePanelController.stop()
+    }
+
+    private func updateStatusMenu() {
+        guard shortcutCoordinator != nil else { return }
+        statusMenuController.update(
+            settings: settings,
+            shortcutCoordinator: shortcutCoordinator
+        )
+    }
+}
