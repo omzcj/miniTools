@@ -10,8 +10,14 @@ INTEL_BUILD_DIR="$ROOT/.build/release-x86_64"
 UNIVERSAL_DIR="$ROOT/.build/release-universal"
 SIGN_IDENTITY="${CODE_SIGN_IDENTITY:?Set CODE_SIGN_IDENTITY to a code-signing identity.}"
 
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "Version must use X.Y.Z format: $VERSION" >&2
+if [[ ! "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}$ ]]; then
+    echo "App version must use YYYY.MM.DD format: $VERSION" >&2
+    exit 1
+fi
+PARSED_VERSION="$(/bin/date -j -f '%Y.%m.%d' \
+    "$VERSION" '+%Y.%m.%d' 2>/dev/null || true)"
+if [[ "$PARSED_VERSION" != "$VERSION" ]]; then
+    echo "App version contains an invalid calendar date: $VERSION" >&2
     exit 1
 fi
 

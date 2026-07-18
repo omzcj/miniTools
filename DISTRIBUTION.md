@@ -2,28 +2,31 @@
 
 ## 发布流程
 
-推送格式为 `vX.Y.Z` 的标签后，`.github/workflows/release.yml` 会自动：
+推送格式为 `vYYYY.MM.DD.N` 的标签后，`.github/workflows/release.yml` 会自动：
 
-1. 校验标签版本与 `Support/Info.plist` 一致并运行测试。
+1. 校验标签日期与 `Support/Info.plist` 一致并运行测试。
 2. 分别构建 arm64 和 x86_64 可执行文件，合成为通用应用。
 3. 使用 ad-hoc 签名和 Hardened Runtime 签署应用。
 4. 校验签名并生成 ZIP、SHA-256 和 GitHub Release。
 
 该流程不需要 Developer ID、Apple 公证凭据或 Homebrew Tap Token。Release 包含：
 
-- `miniTools-X.Y.Z.zip`
-- `miniTools-X.Y.Z.zip.sha256`
+- `miniTools-YYYY.MM.DD.N.zip`
+- `miniTools-YYYY.MM.DD.N.zip.sha256`
 
 ## 发布版本
 
-先更新 `Support/Info.plist` 中的 `CFBundleShortVersionString`，提交并确认 CI 通过，再创建标签：
+先把 `Support/Info.plist` 中的 `CFBundleShortVersionString` 更新为发布日期，提交并确认
+CI 通过，再创建包含当日发布序号的标签：
 
 ```bash
-git tag -a v0.1.0 -m "miniTools 0.1.0"
-git push origin v0.1.0
+git tag -a v2026.07.18.1 -m "miniTools 2026.07.18.1"
+git push origin v2026.07.18.1
 ```
 
-标签必须使用 `vX.Y.Z`，并与 Info.plist 版本一致。`CFBundleVersion` 在 GitHub Actions
+标签必须使用 `vYYYY.MM.DD.N`：日期部分与 Info.plist 中的三段可见版本一致，`N` 从
+`1` 开始，同一天再次发布时依次改为 `2`、`3`。GitHub Release、发布文件和 Homebrew
+Cask 使用完整四段版本；应用内显示三段日期版本。`CFBundleVersion` 在 GitHub Actions
 中使用当次 `GITHUB_RUN_NUMBER`，无需每次手动修改。
 
 ## Homebrew Tap
