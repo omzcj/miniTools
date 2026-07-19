@@ -72,6 +72,9 @@ ad-hoc 签名，并生成 GitHub Release 和 SHA-256。Homebrew Tap 会定期检
 
 ## 代码结构
 
+面向贡献者和后续 AI 编程的产品不变量、架构边界、签名隔离及最低验证要求见
+[AGENTS.md](AGENTS.md)。修改交互、权限、构建或发行流程前请先阅读该文件。
+
 - `App`：应用生命周期、状态栏菜单和功能编排
 - `Features/FeaturePanel`：统一面板状态、键盘命令、布局策略和视觉规范
 - `Features/EncodingConversion`：文本、图片、二维码、OCR 与编码转换面板

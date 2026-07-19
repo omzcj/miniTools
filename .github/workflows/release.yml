@@ -70,7 +70,7 @@ jobs:
             NOTES="$RUNNER_TEMP/release-notes.md"
             printf '%s\n\n%s\n' \
               'This build is ad-hoc signed and is not notarized by Apple.' \
-              'If macOS blocks the first launch, open **System Settings → Privacy & Security** and choose **Open Anyway** for miniTools. Accessibility permission is required for global shortcuts and window management.' \
+              'If macOS blocks the first launch, open **System Settings → Privacy & Security** and choose **Open Anyway** for miniTools. Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring.' \
               > "$NOTES"
 
             gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
