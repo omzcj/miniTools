@@ -37,6 +37,15 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         settingsItem.image = menuIcon(systemName: "gearshape")
         menu.addItem(settingsItem)
 
+        let versionItem = NSMenuItem(
+            title: versionTitle(),
+            action: nil,
+            keyEquivalent: ""
+        )
+        versionItem.image = menuIcon(systemName: "info.circle")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+
         let quitItem = NSMenuItem(
             title: "退出",
             action: #selector(terminate),
@@ -88,5 +97,15 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         let image = AppArtwork.hammerIcon(size: NSSize(width: 18, height: 18))
         image?.accessibilityDescription = "miniTools"
         return image
+    }
+
+    private func versionTitle() -> String {
+        guard let version = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String,
+        !version.isEmpty else {
+            return "版本未知"
+        }
+        return "版本 \(version)"
     }
 }
