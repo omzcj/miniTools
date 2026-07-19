@@ -43,8 +43,9 @@ brew install --cask omzcj/omzcj/minitools
 ## Gatekeeper
 
 Release 使用 ad-hoc 签名，未经过 Apple 公证。macOS 首次启动时可能阻止运行；此时在
-“系统设置 → 隐私与安全性”中为 miniTools 选择“仍要打开”。应用还需要辅助功能权限，
-用于全局快捷键、Safari 窗口切换和窗口管理。
+“系统设置 → 隐私与安全性”中为 miniTools 选择“仍要打开”。Safari 窗口切换和窗口管理
+需要辅助功能权限；使用鼠标 Button 4/5 绑定时还需要输入监控权限。Carbon 全局快捷键本身
+不依赖辅助功能权限。
 
 ## 公开发行前检查
 
