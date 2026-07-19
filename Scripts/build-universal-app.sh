@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${1:?Usage: build-universal-app.sh <version>}"
 EXECUTABLE_NAME="MiniTools"
-APP_DIR="$ROOT/dist/miniTools.app"
+APP_DIR="${APP_OUTPUT_PATH:-"$ROOT/dist/miniTools.app"}"
 ARM_BUILD_DIR="$ROOT/.build/release-arm64"
 INTEL_BUILD_DIR="$ROOT/.build/release-x86_64"
 UNIVERSAL_DIR="$ROOT/.build/release-universal"
