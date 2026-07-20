@@ -7,7 +7,7 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
 
     private let settings: AppSettings
     private let recentActionStore: RecentEncodingActionStore
-    private let englishInputSourceSession = EnglishInputSourceSession()
+    private let englishInputSourceCoordinator: EnglishInputSourceCoordinator
 
     private var activePanel: FeaturePanelKind?
     private var hasLoadedEncodingContent = false
@@ -52,11 +52,13 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
 
     init(
         settings: AppSettings,
+        englishInputSourceCoordinator: EnglishInputSourceCoordinator,
         recentActionStore: RecentEncodingActionStore = RecentEncodingActionStore(
             defaults: .standard
         )
     ) {
         self.settings = settings
+        self.englishInputSourceCoordinator = englishInputSourceCoordinator
         self.recentActionStore = recentActionStore
         super.init()
     }
@@ -100,7 +102,7 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
         hasLoadedSafariWindows = false
         encodingViewModel.endSession()
         safariViewModel.endSession()
-        englishInputSourceSession.end()
+        englishInputSourceCoordinator.end(for: .encodingPanel)
         restorePreviousApplicationIfNeeded(restoreFocus)
 
         isClosing = false
@@ -110,7 +112,7 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
         isPresentationPending = false
         encodingViewModel.endSession()
         safariViewModel.endSession()
-        englishInputSourceSession.end()
+        englishInputSourceCoordinator.end(for: .encodingPanel)
     }
 
     private func activate(_ kind: FeaturePanelKind, shouldPresent: Bool) {
@@ -120,7 +122,7 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
 
         switch kind {
         case .encodingConversion:
-            englishInputSourceSession.begin()
+            englishInputSourceCoordinator.begin(for: .encodingPanel)
             if !hasLoadedEncodingContent {
                 hasLoadedEncodingContent = true
                 encodingViewModel.beginSession(
@@ -133,7 +135,7 @@ final class FeaturePanelController: NSObject, NSWindowDelegate {
             }
 
         case .safariWindows:
-            englishInputSourceSession.end()
+            englishInputSourceCoordinator.end(for: .encodingPanel)
             if !hasLoadedSafariWindows {
                 hasLoadedSafariWindows = true
                 isPresentationPending = shouldPresent && !panel.isVisible

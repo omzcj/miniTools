@@ -14,6 +14,7 @@
 - 交互：输入框实时筛选功能、方向键选择、回车执行、Command-1–9 直达、Tab 切换面板、Esc 清空筛选或关闭
 - Safari 窗口切换：与编码转换共用一个全局快捷键，优先显示标签页组名称，按标题排序；使用单列并根据窗口数量自动调整面板高度
 - 窗口控制：在当前显示器可用区域内调整活动窗口，并支持跨屏移动窗口和鼠标
+- Spotlight 输入法：Spotlight 搜索框获得焦点时临时使用英文；直接关闭后恢复来源应用的输入法，打开其他应用时继续由 macOS 的文稿输入法记忆接管
 - 性能与安全：图片识别和编码在后台执行；压缩结果没有变小时不会覆盖原剪贴板
 
 自动识别只会把可靠候选项放到顶部并默认选中，仍需用户确认，不会自动覆盖原剪贴板。
@@ -51,6 +52,10 @@ CODE_SIGN_IDENTITY="Apple Development: Your Name (XXXXXXXXXX)" ./Scripts/build-a
 记录，再对 `dist/miniTools.app` 授权一次。后续只要证书和 Bundle ID 不变，Debug/Release
 重建都可以复用同一份授权。
 
+“Spotlight 使用英文”默认开启，可在“设置 → 输入法切换”中关闭。该功能通过辅助功能
+识别 Spotlight 搜索框，不接管 `⌘Space`，也不会建立通用的按应用输入法规则。若打开
+Spotlight 时本来就是英文，不会额外记录或恢复输入源。
+
 默认面板唤起快捷键是 `⌥Space`。面板会打开最后一次使用的功能，按 `Tab` 在 Safari 窗口与编码转换之间切换。Safari 面板使用 `ASDFQWERZXCVTGBYHNUIOPL` 直接打开对应窗口、方向键或 `J/K` 上下选择、`Enter` 打开当前高亮窗口、`M` 打开全部未使用标签页组的窗口、`Esc` 关闭。两个面板都不响应列表行鼠标点击，避免误触；应用启动后常驻菜单栏。
 
 窗口控制默认使用 `⇧⌃⌥⌘`：`U/I/J/K` 对应四个角，重复触发在半宽和三分之一宽之间切换；`H/L` 对应左/右侧，重复触发在三分之二和二分之一宽之间切换；`Y` 在上/下半屏之间切换；`O` 在右/左三分之一之间切换；`\` 铺满当前屏幕可用区域。Safari 窗口切换和窗口控制共用辅助功能权限，首次使用需要在“系统设置 → 隐私与安全性 → 辅助功能”中允许 miniTools，不再需要 Safari 自动化权限。
@@ -79,8 +84,10 @@ ad-hoc 签名，并生成 GitHub Release 和 SHA-256。Homebrew Tap 会定期检
 - `Features/FeaturePanel`：统一面板状态、键盘命令、布局策略和视觉规范
 - `Features/EncodingConversion`：文本、图片、二维码、OCR 与编码转换面板
 - `Features/SafariWindows`：Safari 窗口读取、排序、布局和切换面板
+- `Features/SpotlightInput`：Spotlight 焦点识别与临时英文输入源会话
 - `Features/WindowManagement`：窗口几何、辅助功能窗口控制和鼠标跨屏
-- `Shared`：辅助功能访问、全局快捷键、设置存储和通用 UI
+- `Shared`：辅助功能访问、输入源协调、全局快捷键、设置存储和通用 UI
+- `MiniToolsInputSourceHelper`：随应用签名的无界面辅助程序，避免输入源切换被主应用文本上下文抵消
 
 项目原创代码采用 [MIT License](LICENSE)。第三方图稿不包含在该许可授权范围内，来源与
 许可状态见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。公开发行前仍需确认图标与

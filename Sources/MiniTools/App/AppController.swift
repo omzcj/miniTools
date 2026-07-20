@@ -6,7 +6,9 @@ final class AppController: NSObject {
     private var settings: AppSettings { applicationContext.settings }
     private let statusMenuController = StatusMenuController()
     private let windowControlController = WindowControlController()
+    private let englishInputSourceCoordinator: EnglishInputSourceCoordinator
     private let featurePanelController: FeaturePanelController
+    private let spotlightInputSourceCoordinator: SpotlightInputSourceCoordinator
     private lazy var commandDispatcher = AppCommandDispatcher(
         settings: settings,
         featurePanelController: featurePanelController,
@@ -20,8 +22,15 @@ final class AppController: NSObject {
 
     init(applicationContext: ApplicationContext) {
         self.applicationContext = applicationContext
+        let englishInputSourceCoordinator = EnglishInputSourceCoordinator()
+        self.englishInputSourceCoordinator = englishInputSourceCoordinator
         featurePanelController = FeaturePanelController(
-            settings: applicationContext.settings
+            settings: applicationContext.settings,
+            englishInputSourceCoordinator: englishInputSourceCoordinator
+        )
+        spotlightInputSourceCoordinator = SpotlightInputSourceCoordinator(
+            settings: applicationContext.settings,
+            englishInputSources: englishInputSourceCoordinator
         )
         super.init()
     }
@@ -70,6 +79,7 @@ final class AppController: NSObject {
         statusMenuController.start()
         shortcutCoordinator.start()
         mouseBindingCoordinator.start()
+        spotlightInputSourceCoordinator.start()
         updateStatusMenu()
 
         // Constructing an NSHostingView while SwiftUI is still laying out the app's
@@ -91,7 +101,9 @@ final class AppController: NSObject {
         featurePanelPreparationTask?.cancel()
         featurePanelPreparationTask = nil
         mouseBindingCoordinator?.stop()
+        spotlightInputSourceCoordinator.stop()
         featurePanelController.stop()
+        englishInputSourceCoordinator.stop()
     }
 
     private func updateStatusMenu() {

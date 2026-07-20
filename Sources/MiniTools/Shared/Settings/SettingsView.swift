@@ -2,6 +2,7 @@ import SwiftUI
 
 private enum SettingsCategory: String, CaseIterable, Identifiable {
     case featurePanel
+    case inputSource
     case windowManagement
     case mouseBindings
     case cursorAnimation
@@ -11,6 +12,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .featurePanel: "工具面板"
+        case .inputSource: "输入法切换"
         case .windowManagement: "窗口管理"
         case .mouseBindings: "鼠标侧键"
         case .cursorAnimation: "定位动画"
@@ -21,6 +23,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .featurePanel:
             "配置统一面板的唤起方式与转换参数。"
+        case .inputSource:
+            "让 Spotlight 搜索使用英文，并保留系统的文稿输入法记忆。"
         case .windowManagement:
             "配置窗口布局、跨屏操作与全局快捷键。"
         case .mouseBindings:
@@ -33,6 +37,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .featurePanel: "hammer"
+        case .inputSource: "character.cursor.ibeam"
         case .windowManagement: "macwindow"
         case .mouseBindings: "computermouse"
         case .cursorAnimation: "cursorarrow.rays"
@@ -106,6 +111,8 @@ private struct SettingsCategoryDetail: View {
             switch category {
             case .featurePanel:
                 featurePanelSettings
+            case .inputSource:
+                inputSourceSettings
             case .windowManagement:
                 windowManagementSettings
             case .mouseBindings:
@@ -149,6 +156,24 @@ private struct SettingsCategoryDetail: View {
         .multilineTextAlignment(.center)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
+    }
+
+    @ViewBuilder
+    private var inputSourceSettings: some View {
+        Section {
+            Toggle(isOn: $settings.spotlightUsesEnglishInputSource) {
+                settingsLabel(
+                    title: "Spotlight 使用英文",
+                    subtitle: "仅在搜索框获得焦点且当前不是英文时临时切换"
+                )
+            }
+        } header: {
+            Text("Spotlight")
+        } footer: {
+            Text(
+                "直接关闭 Spotlight 时恢复原输入法；打开其他应用时由 macOS 的文稿输入法记忆接管。需要辅助功能权限。"
+            )
+        }
     }
 
     @ViewBuilder

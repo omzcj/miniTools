@@ -7,6 +7,7 @@ final class AppSettings: ObservableObject {
         static let lastFeaturePanel = "lastFeaturePanel"
         static let windowControlShortcuts = "windowControlShortcuts"
         static let compressionQuality = "compressionQuality"
+        static let spotlightUsesEnglishInputSource = "spotlightUsesEnglishInputSource"
         static let cursorHighlightStyles = "cursorHighlightStyles"
         static let mouseBindings = "mouseBindings"
         static let mouseDragThresholdRatio = "mouseDragThresholdRatio"
@@ -26,6 +27,14 @@ final class AppSettings: ObservableObject {
     @Published private(set) var cursorHighlightStyles: Set<CursorHighlightStyle>
     @Published private(set) var mouseBindings: [MouseBindingKey: AppCommand]
     @Published private(set) var mouseDragThresholdRatio: Double
+    @Published var spotlightUsesEnglishInputSource: Bool {
+        didSet {
+            defaults.set(
+                spotlightUsesEnglishInputSource,
+                forKey: Keys.spotlightUsesEnglishInputSource
+            )
+        }
+    }
     @Published var compressionQuality: Double {
         didSet {
             defaults.set(compressionQuality, forKey: Keys.compressionQuality)
@@ -52,6 +61,9 @@ final class AppSettings: ObservableObject {
         cursorHighlightStyles = loadedCursorHighlightStyles
         mouseBindings = Self.loadMouseBindings(defaults: defaults)
         mouseDragThresholdRatio = Self.loadMouseDragThresholdRatio(defaults: defaults)
+        spotlightUsesEnglishInputSource = defaults.object(
+            forKey: Keys.spotlightUsesEnglishInputSource
+        ) == nil || defaults.bool(forKey: Keys.spotlightUsesEnglishInputSource)
 
         let storedQuality = defaults.double(forKey: Keys.compressionQuality)
         compressionQuality = storedQuality == 0 ? 0.7 : storedQuality
