@@ -8,7 +8,11 @@ let package = Package(
         .macOS(.v26)
     ],
     products: [
-        .executable(name: "MiniTools", targets: ["MiniTools"])
+        .executable(name: "MiniTools", targets: ["MiniTools"]),
+        .executable(
+            name: "MiniToolsInputSourceHelper",
+            targets: ["MiniToolsInputSourceHelper"]
+        )
     ],
     targets: [
         .executableTarget(
@@ -20,6 +24,13 @@ let package = Package(
                 .linkedFramework("Carbon"),
                 .linkedFramework("CoreImage"),
                 .linkedFramework("Vision")
+            ]
+        ),
+        .executableTarget(
+            name: "MiniToolsInputSourceHelper",
+            path: "Sources/MiniToolsInputSourceHelper",
+            linkerSettings: [
+                .linkedFramework("Carbon")
             ]
         ),
         .testTarget(

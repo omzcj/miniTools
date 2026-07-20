@@ -43,6 +43,14 @@
 - `↑/↓` 与 `J/K` 选择，`Enter` 打开高亮窗口，`M` 打开全部未使用标签页组的窗口，`Tab` 切换面板，`Esc` 关闭。
 - 不要给列表恢复鼠标点击，也不要改成多列。
 
+### Spotlight 输入源
+
+- 该功能只补足 Spotlight 搜索始终使用英文的场景，不扩展为通用的按应用输入法规则，也不关闭或替代 macOS 的“自动切换到文稿的输入源”。
+- 通过 Accessibility AX 识别 `com.apple.Spotlight` 的搜索框焦点，不拦截或模拟 `⌘Space`。Spotlight 快捷键被用户修改后仍应正常工作。
+- 打开时已经是英文则不创建恢复任务。由非英文临时切到英文后，直接回到来源应用才恢复；若 Spotlight 打开了另一个应用，则丢弃恢复任务，让 macOS 的文稿输入法记忆接管。
+- 编码面板和 Spotlight 必须共用 `EnglishInputSourceCoordinator`，避免嵌套会话互相覆盖输入源；但编码面板使用主进程输入上下文，Spotlight 使用聚焦外部应用的辅助程序后端，不得混用。
+- 主应用内直接调用 `TISSelectInputSource` 会受到自身文本输入上下文影响。应用包必须保留并签名 `Contents/Helpers/MiniToolsInputSourceHelper`；不要改回模拟按键、AppleScript 或只在主进程内切换。
+
 ### 窗口管理、鼠标侧键与定位动画
 
 - 窗口移动和缩放基于当前屏幕 `visibleFrame`，并正确处理 AppKit 与 AX 坐标系转换。
@@ -63,9 +71,11 @@
 | `Features/FeaturePanel` | 两个面板共享的命令、切换器、尺寸策略和原生玻璃视觉规范。面板等宽、分离表面及无跳动布局在这里统一治理。 |
 | `Features/EncodingConversion` | 动作目录、剪贴板模型、文本/图片转换服务、搜索与编码面板状态。新增动作时优先扩展 Catalog 和 `ToolAction`，不要在 View 中写转换逻辑。 |
 | `Features/SafariWindows` | Safari AX 窗口读取、标题推导、排序、布局、选择和激活。保持 Service、ViewModel、View 分层。 |
+| `Features/SpotlightInput` | Spotlight AX 搜索焦点监听、来源/去向判定和临时英文会话。不要在这里实现通用应用输入法规则。 |
 | `Features/WindowManagement` | 窗口几何、布局命令、AX 健康检查、跨屏鼠标移动和定位动画。 |
 | `Features/MouseBindings` | 侧键事件监听、手势识别、动作配置和拖动路径反馈。 |
 | `Shared` | Accessibility、统一 `AppCommand`、全局快捷键、设置持久化和通用 UI。跨功能抽象应有两个以上实际调用方再放入这里。 |
+| `Sources/MiniToolsInputSourceHelper` | 无界面的输入源读写辅助程序。必须作为 arm64/x86_64 通用二进制内嵌，并先于主应用签名。 |
 | `Tests/MiniToolsTests` | 按功能目录放置单元测试。新增行为应优先在所属功能下补测试，而不是建立大型跨模块测试文件。 |
 | `Scripts` | 可复现的本地构建、稳定签名调试、通用包构建与发行打包。签名和输出目录的隔离属于关键行为。 |
 | `Support` | Info.plist、图标、状态栏资源及应用包支持文件。 |
@@ -87,6 +97,7 @@
 | --- | --- |
 | 剪贴板转换、二维码生成、OCR | 不需要辅助功能权限；OCR 使用系统 Vision。 |
 | Safari 窗口读取与前置 | 辅助功能（Accessibility）。不使用 AppleScript 自动化权限。 |
+| Spotlight 临时英文输入源 | 辅助功能（Accessibility），仅用于识别 Spotlight 搜索框焦点。 |
 | 活动窗口移动、缩放和跨屏 | 辅助功能（Accessibility）。 |
 | Button 4/5 监听与拦截 | 辅助功能 + 输入监控（Input Monitoring）。 |
 
@@ -101,6 +112,8 @@
 ```
 
 该脚本使用稳定的 Apple Development 身份组装固定路径 `dist/miniTools.app`，再替换并启动应用。保持固定 Bundle ID、固定路径和稳定签名，才能让 TCC 权限在重复构建后继续有效。
+
+构建脚本还会把 `MiniToolsInputSourceHelper` 放入 `Contents/Helpers`，使用与应用相同的身份先行签名。通用发行构建必须同时检查主程序和该辅助程序均包含 arm64/x86_64；缺失、未签名或仅单架构的辅助程序会使 Spotlight 输入源功能失效。
 
 不要使用 `swift run MiniTools` 验证权限相关功能；不要把 ad-hoc 构建覆盖到 `dist/miniTools.app`。发行包必须留在 `dist/release/miniTools.app`，否则下一次本地调试可能持续报告辅助功能状态异常。
 

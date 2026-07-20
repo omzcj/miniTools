@@ -5,8 +5,8 @@
 推送格式为 `vYYYY.MM.DD.N` 的标签后，`.github/workflows/release.yml` 会自动：
 
 1. 校验标签日期与 `Support/Info.plist` 一致并运行测试。
-2. 分别构建 arm64 和 x86_64 可执行文件，合成为通用应用。
-3. 使用 ad-hoc 签名和 Hardened Runtime 签署应用。
+2. 分别构建 arm64 和 x86_64 的主程序与输入源辅助程序，合成为通用应用。
+3. 先签署内嵌的输入源辅助程序，再使用 ad-hoc 签名和 Hardened Runtime 签署应用。
 4. 校验签名并生成 ZIP、SHA-256 和 GitHub Release。
 
 该流程不需要 Developer ID、Apple 公证凭据或 Homebrew Tap Token。Release 包含：
@@ -44,8 +44,8 @@ brew install --cask omzcj/omzcj/minitools
 
 Release 使用 ad-hoc 签名，未经过 Apple 公证。macOS 首次启动时可能阻止运行；此时在
 “系统设置 → 隐私与安全性”中为 miniTools 选择“仍要打开”。Safari 窗口切换和窗口管理
-需要辅助功能权限；使用鼠标 Button 4/5 绑定时还需要输入监控权限。Carbon 全局快捷键本身
-不依赖辅助功能权限。
+需要辅助功能权限；Spotlight 英文输入源功能也使用该权限识别搜索框焦点。使用鼠标
+Button 4/5 绑定时还需要输入监控权限。Carbon 全局快捷键本身不依赖辅助功能权限。
 
 ## 公开发行前检查
 

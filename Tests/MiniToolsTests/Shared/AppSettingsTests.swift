@@ -13,6 +13,18 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.panelShortcut, .panelDefault)
         XCTAssertEqual(settings.panelShortcut.displayName, "⌥Space")
         XCTAssertEqual(settings.lastFeaturePanel, .encodingConversion)
+        XCTAssertTrue(settings.spotlightUsesEnglishInputSource)
+    }
+
+    @MainActor
+    func testUpdatesAndPersistsSpotlightEnglishInputSourceSetting() throws {
+        let (defaults, suiteName) = try makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let settings = AppSettings(defaults: defaults)
+
+        settings.spotlightUsesEnglishInputSource = false
+
+        XCTAssertFalse(AppSettings(defaults: defaults).spotlightUsesEnglishInputSource)
     }
 
     @MainActor

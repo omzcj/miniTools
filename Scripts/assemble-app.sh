@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="miniTools"
 EXECUTABLE_NAME="MiniTools"
-EXECUTABLE_PATH="${1:?Usage: assemble-app.sh <executable-path> [app-path]}"
+HELPER_NAME="MiniToolsInputSourceHelper"
+EXECUTABLE_PATH="${1:?Usage: assemble-app.sh <executable-path> [app-path] <helper-path>}"
 APP_DIR="${2:-"$ROOT/dist/$APP_NAME.app"}"
+HELPER_PATH="${3:?Usage: assemble-app.sh <executable-path> [app-path] <helper-path>}"
 CONTENTS_DIR="$APP_DIR/Contents"
 SIGN_IDENTITY="${CODE_SIGN_IDENTITY:?Set CODE_SIGN_IDENTITY to a code-signing identity.}"
 APP_VERSION="${APP_VERSION:-"$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$ROOT/Support/Info.plist")"}"
@@ -15,10 +17,15 @@ if [[ ! -f "$EXECUTABLE_PATH" ]]; then
     echo "Executable not found: $EXECUTABLE_PATH" >&2
     exit 1
 fi
+if [[ ! -f "$HELPER_PATH" ]]; then
+    echo "Input source helper not found: $HELPER_PATH" >&2
+    exit 1
+fi
 
 rm -rf "$APP_DIR"
-mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
+mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Helpers" "$CONTENTS_DIR/Resources"
 cp "$EXECUTABLE_PATH" "$CONTENTS_DIR/MacOS/$EXECUTABLE_NAME"
+cp "$HELPER_PATH" "$CONTENTS_DIR/Helpers/$HELPER_NAME"
 cp "$ROOT/Support/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT/Support/Assets/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
 cp "$ROOT/Support/Assets/SmartisanStatusIcon.png" \
@@ -39,8 +46,10 @@ elif [[ "$SIGN_IDENTITY" == "-" ]]; then
     SIGN_ARGUMENTS+=(--options runtime --timestamp=none)
 fi
 
+codesign "${SIGN_ARGUMENTS[@]}" "$CONTENTS_DIR/Helpers/$HELPER_NAME"
 codesign "${SIGN_ARGUMENTS[@]}" "$APP_DIR"
-codesign --verify --strict "$APP_DIR"
+codesign --verify --strict "$CONTENTS_DIR/Helpers/$HELPER_NAME"
+codesign --verify --deep --strict "$APP_DIR"
 
 DESIGNATED_REQUIREMENT="$(codesign -d -r- "$APP_DIR" 2>&1)"
 if [[ "$SIGN_IDENTITY" != "-" && "$DESIGNATED_REQUIREMENT" == *"designated => cdhash"* ]]; then
