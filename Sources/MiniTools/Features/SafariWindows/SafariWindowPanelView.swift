@@ -73,7 +73,7 @@ struct SafariWindowPanelView: View {
                 }
             } else {
                 FeaturePanelShortcutHints(
-                    leading: ["字母直达", "↑↓/J/K 选择", "M 打开未分组"],
+                    leading: ["字母直达", "↑↓/J/K 选择", "N 新建窗口", "M 打开未分组"],
                     trailing: ["Enter 执行", "Tab 切换", "Esc 关闭"]
                 )
             }

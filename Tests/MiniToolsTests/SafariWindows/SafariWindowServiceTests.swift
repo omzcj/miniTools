@@ -68,11 +68,13 @@ final class SafariWindowServiceTests: XCTestCase {
                     XCTAssertEqual(id, "1")
                     activated.fulfill()
                 },
-                activateWindows: { _ in }
+                activateWindows: { _ in },
+                createWindow: {}
             )
         )
 
-        XCTAssertEqual(SafariWindowPanelViewModel.selectionKeys.joined(), "asdfqwerzxcvtgbyhnuiopl")
+        XCTAssertEqual(SafariWindowPanelViewModel.selectionKeys.joined(), "asdfqwerzxcvtgbyhuiopl")
+        XCTAssertFalse(SafariWindowPanelViewModel.selectionKeys.contains("n"))
         XCTAssertEqual(viewModel.selectedWindowID, "2")
         XCTAssertTrue(viewModel.handleSelectionKey("a"))
         XCTAssertEqual(viewModel.selectedWindowID, "1")
@@ -96,7 +98,8 @@ final class SafariWindowServiceTests: XCTestCase {
             client: SafariWindowClient(
                 fetchWindows: { windows },
                 activateWindow: { _ in },
-                activateWindows: { _ in }
+                activateWindows: { _ in },
+                createWindow: {}
             )
         )
 
@@ -117,7 +120,8 @@ final class SafariWindowServiceTests: XCTestCase {
             client: SafariWindowClient(
                 fetchWindows: { windows },
                 activateWindow: { _ in activated.fulfill() },
-                activateWindows: { _ in }
+                activateWindows: { _ in },
+                createWindow: {}
             )
         )
 
@@ -142,12 +146,39 @@ final class SafariWindowServiceTests: XCTestCase {
                 activateWindows: { ids in
                     XCTAssertEqual(ids, ["1", "3"])
                     activated.fulfill()
-                }
+                },
+                createWindow: {}
             )
         )
 
         XCTAssertTrue(viewModel.handleSelectionKey("m"))
         await fulfillment(of: [activated], timeout: 1)
+    }
+
+    @MainActor
+    func testNCreatesNewSafariWindow() async {
+        let created = expectation(description: "新建 Safari 窗口")
+        let viewModel = SafariWindowPanelViewModel(
+            initialWindows: [
+                SafariWindowItem(
+                    id: "1",
+                    title: "Alpha",
+                    wasActiveWindow: true,
+                    hasTabGroup: false
+                )
+            ],
+            client: SafariWindowClient(
+                fetchWindows: { [] },
+                activateWindow: { _ in },
+                activateWindows: { _ in },
+                createWindow: {
+                    created.fulfill()
+                }
+            )
+        )
+
+        XCTAssertTrue(viewModel.handleSelectionKey("n"))
+        await fulfillment(of: [created], timeout: 1)
     }
 
     @MainActor
@@ -164,7 +195,8 @@ final class SafariWindowServiceTests: XCTestCase {
                     )]
                 },
                 activateWindow: { _ in },
-                activateWindows: { _ in }
+                activateWindows: { _ in },
+                createWindow: {}
             )
         )
 

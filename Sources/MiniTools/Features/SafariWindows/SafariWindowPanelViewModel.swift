@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class SafariWindowPanelViewModel: ObservableObject {
-    static let selectionKeys = Array("asdfqwerzxcvtgbyhnuiopl").map(String.init)
+    static let selectionKeys = Array("asdfqwerzxcvtgbyhuiopl").map(String.init)
 
     @Published private(set) var windows: [SafariWindowItem] = []
     @Published var selectedWindowID: String?
@@ -84,28 +84,9 @@ final class SafariWindowPanelViewModel: ObservableObject {
 
     func activateSelectedWindow() {
         guard !isActivating, let selectedWindowID else { return }
-        isActivating = true
-        errorMessage = nil
         let activateWindow = client.activateWindow
-        let generation = sessionGeneration
-
-        activationTask = Task { [weak self] in
-            let result = await Task.detached(priority: .userInitiated) {
-                Result { try activateWindow(selectedWindowID) }
-            }.value
-            guard let self,
-                  !Task.isCancelled,
-                  sessionGeneration == generation else {
-                return
-            }
-            activationTask = nil
-            isActivating = false
-            switch result {
-            case .success:
-                onWindowActivated?()
-            case let .failure(error):
-                errorMessage = error.localizedDescription
-            }
+        performActivation {
+            try activateWindow(selectedWindowID)
         }
     }
 
@@ -117,14 +98,29 @@ final class SafariWindowPanelViewModel: ObservableObject {
             return
         }
 
+        let activateWindows = client.activateWindows
+        performActivation {
+            try activateWindows(windowIDs)
+        }
+    }
+
+    func createWindow() {
+        let createWindow = client.createWindow
+        performActivation {
+            try createWindow()
+        }
+    }
+
+    private func performActivation(
+        _ operation: @escaping @Sendable () throws -> Void
+    ) {
+        guard !isActivating else { return }
         isActivating = true
         errorMessage = nil
-        let activateWindows = client.activateWindows
         let generation = sessionGeneration
-
         activationTask = Task { [weak self] in
             let result = await Task.detached(priority: .userInitiated) {
-                Result { try activateWindows(windowIDs) }
+                Result { try operation() }
             }.value
             guard let self,
                   !Task.isCancelled,
@@ -161,6 +157,10 @@ final class SafariWindowPanelViewModel: ObservableObject {
     }
 
     func handleSelectionKey(_ key: String) -> Bool {
+        if key == "n" {
+            createWindow()
+            return true
+        }
         if key == "m" {
             activateAllUngroupedWindows()
             return true
