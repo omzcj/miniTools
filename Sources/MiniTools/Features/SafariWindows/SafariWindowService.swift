@@ -12,7 +12,14 @@ struct SafariAXWindowRecord: Equatable {
 enum SafariWindowService {
     private static let safariBundleIdentifier = "com.apple.Safari"
     private static var windowNumberAttribute: CFString { "AXWindowNumber" as CFString }
+    private static var menuItemCommandCharacterAttribute: CFString {
+        "AXMenuItemCmdChar" as CFString
+    }
+    private static var menuItemCommandModifiersAttribute: CFString {
+        "AXMenuItemCmdModifiers" as CFString
+    }
     private static let webAreaRole = "AXWebArea"
+    private static let menuItemRole = "AXMenuItem"
 
     static func fetchWindows() throws -> [SafariWindowItem] {
         try AccessibilityAuthorization.requirePermission()
@@ -80,6 +87,46 @@ enum SafariWindowService {
         for target in targets.reversed() {
             try restoreAndRaise(target)
         }
+    }
+
+    static func createWindow() throws {
+        try AccessibilityAuthorization.requirePermission()
+
+        guard let application = runningSafariApplication() else {
+            guard
+                let safariURL = NSWorkspace.shared.urlForApplication(
+                    withBundleIdentifier: safariBundleIdentifier
+                ),
+                NSWorkspace.shared.open(safariURL)
+            else {
+                throw MiniToolsError.processingFailed("无法启动 Safari")
+            }
+            return
+        }
+
+        let axApplication = AccessibilityClient.application(
+            for: application.processIdentifier
+        )
+        guard
+            let menuBar = AccessibilityClient.element(
+                from: axApplication,
+                attribute: kAXMenuBarAttribute as CFString
+            ),
+            let newWindowItem = newWindowMenuItem(in: menuBar)
+        else {
+            throw MiniToolsError.processingFailed("无法找到 Safari 的“新建窗口”命令")
+        }
+
+        let result = AccessibilityClient.perform(
+            kAXPressAction as CFString,
+            on: newWindowItem
+        )
+        guard result == .success else {
+            throw MiniToolsError.processingFailed(
+                "无法新建 Safari 窗口（错误码 \(result.rawValue)）"
+            )
+        }
+        _ = application.activate(options: [])
     }
 
     private static func restoreAndRaise(_ target: AXUIElement) throws {
@@ -154,15 +201,62 @@ enum SafariWindowService {
     }
 
     private static func safariApplication() throws -> (NSRunningApplication, AXUIElement) {
-        guard let application = NSRunningApplication.runningApplications(
-            withBundleIdentifier: safariBundleIdentifier
-        ).first else {
+        guard let application = runningSafariApplication() else {
             throw MiniToolsError.processingFailed("Safari 未运行")
         }
         return (
             application,
             AccessibilityClient.application(for: application.processIdentifier)
         )
+    }
+
+    private static func runningSafariApplication() -> NSRunningApplication? {
+        NSRunningApplication.runningApplications(
+            withBundleIdentifier: safariBundleIdentifier
+        ).first
+    }
+
+    private static func newWindowMenuItem(in menuBar: AXUIElement) -> AXUIElement? {
+        var queue = AccessibilityClient.elements(
+            from: menuBar,
+            attribute: kAXChildrenAttribute as CFString
+        )
+        var cursor = 0
+        var inspectedElementCount = 0
+
+        while cursor < queue.count, inspectedElementCount < 500 {
+            let element = queue[cursor]
+            cursor += 1
+            inspectedElementCount += 1
+
+            let role = AccessibilityClient.string(
+                from: element,
+                attribute: kAXRoleAttribute as CFString
+            )
+            let commandCharacter = AccessibilityClient.string(
+                from: element,
+                attribute: menuItemCommandCharacterAttribute
+            )
+            let commandModifiers = AccessibilityClient.integer(
+                from: element,
+                attribute: menuItemCommandModifiersAttribute
+            )
+            if role == menuItemRole,
+               commandCharacter?.caseInsensitiveCompare("n") == .orderedSame,
+               commandModifiers == 0,
+               AccessibilityClient.boolean(
+                   from: element,
+                   attribute: kAXEnabledAttribute as CFString
+               ) != false {
+                return element
+            }
+
+            queue.append(contentsOf: AccessibilityClient.elements(
+                from: element,
+                attribute: kAXChildrenAttribute as CFString
+            ))
+        }
+        return nil
     }
 
     private static func accessibilityWindows(of application: AXUIElement) throws -> [AXUIElement] {
