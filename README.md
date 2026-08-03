@@ -48,8 +48,9 @@ CODE_SIGN_IDENTITY="Apple Development: Your Name (XXXXXXXXXX)" ./Scripts/build-a
 ```
 
 首次改用稳定签名时，需要在“系统设置 → 隐私与安全性 → 辅助功能”中删除旧的 miniTools
-记录，再对 `dist/miniTools.app` 授权一次。后续只要证书和 Bundle ID 不变，Debug/Release
-重建都可以复用同一份授权。
+记录，再对 `dist/miniTools.app` 授权一次。后续只要 Apple Development 证书、应用路径和
+Bundle ID 不变，本地调试重建就可以复用同一份授权。Homebrew 安装的 Developer ID 发行版
+是另一份应用身份，首次迁移时可能需要单独授权一次。
 
 默认面板唤起快捷键是 `⌥Space`。面板会打开最后一次使用的功能，按 `Tab` 在 Safari 窗口与编码转换之间切换。Safari 面板使用 `ASDFQWERZXCVTGBYHUIOPL` 直接打开对应窗口、方向键或 `J/K` 上下选择、`Enter` 打开当前高亮窗口、`N` 新建 Safari 窗口、`M` 打开全部未使用标签页组的窗口、`Esc` 关闭。两个面板都不响应列表行鼠标点击，避免误触；应用启动后常驻菜单栏。
 
@@ -65,9 +66,9 @@ swift test
 
 ## 发行与 Homebrew
 
-推送 `vYYYY.MM.DD.N` 标签后，GitHub Actions 会构建 arm64 / x86_64 通用应用，完成
-ad-hoc 签名，并生成 GitHub Release 和 SHA-256。Homebrew Tap 会定期检查 Release，
-通过 Autobump PR 更新 Cask。首次运行的 Gatekeeper 操作和发版步骤见
+推送 `vYYYY.MM.DD.N` 标签后，GitHub Actions 会构建 arm64 / x86_64 通用应用，使用
+Developer ID 签名并提交 Apple 公证，再生成 GitHub Release 和 SHA-256。Homebrew Tap
+会定期检查 Release，通过 Autobump PR 更新 Cask。签名配置和发版步骤见
 [DISTRIBUTION.md](DISTRIBUTION.md)。
 
 ## 代码结构

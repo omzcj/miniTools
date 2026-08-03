@@ -14,9 +14,9 @@ concurrency:
 
 jobs:
   release:
-    name: Build, ad-hoc sign, and release
+    name: Build, sign, notarize, and release
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Check out repository
@@ -50,11 +50,80 @@ jobs:
       - name: Run tests
         run: swift test
 
-      - name: Build, ad-hoc sign, and package
+      - name: Import Developer ID certificate
+        env:
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
         run: |
-          CODE_SIGN_IDENTITY=- \
+          if [[ -z "$DEVELOPER_ID_P12_BASE64" || -z "$DEVELOPER_ID_P12_PASSWORD" ]]; then
+            echo "Developer ID signing secrets are not configured." >&2
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/miniTools-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          P12_PATH="$RUNNER_TEMP/miniTools-developer-id.p12"
+          echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          printf '%s' "$DEVELOPER_ID_P12_BASE64" | /usr/bin/base64 -D > "$P12_PATH"
+          chmod 600 "$P12_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$P12_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+          SIGN_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' \
+            | head -n 1)"
+          if [[ -z "$SIGN_IDENTITY" ]]; then
+            echo "No Developer ID Application identity was imported." >&2
+            exit 1
+          fi
+
+          echo "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Prepare notarization credentials
+        env:
+          NOTARY_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          if [[ -z "$NOTARY_KEY_BASE64" || -z "$NOTARY_KEY_ID" || -z "$NOTARY_ISSUER_ID" ]]; then
+            echo "Apple notarization secrets are not configured." >&2
+            exit 1
+          fi
+
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey_$NOTARY_KEY_ID.p8"
+          printf '%s' "$NOTARY_KEY_BASE64" | /usr/bin/base64 -D > "$NOTARY_KEY_PATH"
+          chmod 600 "$NOTARY_KEY_PATH"
+          echo "NOTARY_KEY_PATH=$NOTARY_KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Build, sign, and package
+        run: |
+          CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
             APP_BUILD="$GITHUB_RUN_NUMBER" \
             Scripts/package-release.sh "$VERSION"
+
+      - name: Notarize and staple
+        env:
+          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+        run: |
+          NOTARY_KEY_PATH="$NOTARY_KEY_PATH" \
+          NOTARY_KEY_ID="$NOTARY_KEY_ID" \
+          NOTARY_ISSUER_ID="$NOTARY_ISSUER_ID" \
+          EXPECTED_TEAM_ID="566UG6DQ7E" \
+            Scripts/notarize-release.sh "$VERSION"
 
       - name: Create GitHub release
         env:
@@ -69,8 +138,8 @@ jobs:
           else
             NOTES="$RUNNER_TEMP/release-notes.md"
             printf '%s\n\n%s\n' \
-              'This build is ad-hoc signed and is not notarized by Apple.' \
-              'If macOS blocks the first launch, open **System Settings → Privacy & Security** and choose **Open Anyway** for miniTools. Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring.' \
+              'This build is signed with Developer ID and notarized by Apple.' \
+              'Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring.' \
               > "$NOTES"
 
             gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
@@ -79,3 +148,13 @@ jobs:
               --generate-notes \
               --notes-file "$NOTES"
           fi
+
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          if [[ -n "${SIGNING_KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$SIGNING_KEYCHAIN_PATH" >/dev/null 2>&1 || true
+          fi
+          rm -f \
+            "$RUNNER_TEMP/miniTools-developer-id.p12" \
+            "$RUNNER_TEMP"/AuthKey_*.p8
