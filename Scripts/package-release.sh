@@ -12,7 +12,12 @@ APP_DIR="$ROOT/dist/release/miniTools.app"
 ARCHIVE_NAME="miniTools-$VERSION.zip"
 ARCHIVE_PATH="$ROOT/dist/$ARCHIVE_NAME"
 CHECKSUM_PATH="$ARCHIVE_PATH.sha256"
-SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+SIGN_IDENTITY="${CODE_SIGN_IDENTITY:?Set CODE_SIGN_IDENTITY to a Developer ID Application identity.}"
+
+if [[ "$SIGN_IDENTITY" != "Developer ID Application:"* ]]; then
+    echo "Release packages must use a Developer ID Application identity." >&2
+    exit 1
+fi
 
 CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
 APP_VERSION="$APP_VERSION" \

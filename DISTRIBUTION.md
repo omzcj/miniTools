@@ -6,10 +6,19 @@
 
 1. 校验标签日期与 `Support/Info.plist` 一致并运行测试。
 2. 分别构建 arm64 和 x86_64 可执行文件，合成为通用应用。
-3. 使用 ad-hoc 签名和 Hardened Runtime 签署应用。
-4. 校验签名并生成 ZIP、SHA-256 和 GitHub Release。
+3. 使用 Developer ID Application、Hardened Runtime 和安全时间戳签署应用。
+4. 上传 Apple 公证服务，等待通过并将 ticket staple 到应用。
+5. 校验签名、Gatekeeper 和公证 ticket，再生成最终 ZIP、SHA-256 和 GitHub Release。
 
-该流程不需要 Developer ID、Apple 公证凭据或 Homebrew Tap Token。Release 包含：
+Release workflow 使用以下 GitHub Actions Secrets：
+
+- `DEVELOPER_ID_P12_BASE64`：Developer ID Application 证书和私钥的 P12 Base64。
+- `DEVELOPER_ID_P12_PASSWORD`：P12 密码。
+- `APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64`：App Store Connect API 私钥的 Base64。
+- `APP_STORE_CONNECT_API_KEY_ID`：API Key ID。
+- `APP_STORE_CONNECT_API_ISSUER_ID`：Team API Key Issuer ID。
+
+Release 包含：
 
 - `miniTools-YYYY.MM.DD.N.zip`
 - `miniTools-YYYY.MM.DD.N.zip.sha256`
@@ -42,10 +51,12 @@ brew install --cask omzcj/omzcj/minitools
 
 ## Gatekeeper
 
-Release 使用 ad-hoc 签名，未经过 Apple 公证。macOS 首次启动时可能阻止运行；此时在
-“系统设置 → 隐私与安全性”中为 miniTools 选择“仍要打开”。Safari 窗口切换和窗口管理
-需要辅助功能权限；使用鼠标 Button 4/5 绑定时还需要输入监控权限。Carbon 全局快捷键本身
-不依赖辅助功能权限。
+Release 使用 Developer ID 签名并经过 Apple 公证，Gatekeeper 应直接接受。首次从旧的
+ad-hoc 版本迁移到 Developer ID 版本时，系统可能将其视为一次签名身份变更；辅助功能和
+输入监控权限可能需要重新授权一次。后续版本必须维持 Bundle ID `com.omzcj.minitools`、
+Team ID `566UG6DQ7E` 和 Developer ID 签名，避免再次破坏 TCC 权限身份。Safari 窗口切换
+和窗口管理需要辅助功能权限；使用鼠标 Button 4/5 绑定时还需要输入监控权限。Carbon
+全局快捷键本身不依赖辅助功能权限。
 
 ## 公开发行前检查
 

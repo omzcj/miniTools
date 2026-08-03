@@ -111,7 +111,7 @@
 CODE_SIGN_IDENTITY="Apple Development: Name (TEAMID)" ./Scripts/build-app.sh
 ```
 
-`Scripts/package-release.sh` 当前有意生成 ad-hoc、Hardened Runtime 的通用发行包；它不是 Developer ID 签名，也未公证。不要把本地开发签名用于公开发行，也不要在没有明确任务的情况下改变签名策略。
+`Scripts/package-release.sh` 只接受 Developer ID Application 身份，并生成启用 Hardened Runtime 和安全时间戳的通用发行包；`Scripts/notarize-release.sh` 负责上传 Apple 公证、staple ticket、验证 Gatekeeper 并重新生成最终 ZIP 和 SHA-256。不要把本地 Apple Development 签名用于公开发行，也不要让发行流程回退到 ad-hoc。
 
 ## 最低验证要求
 
@@ -130,7 +130,7 @@ git diff --check
 | Info.plist | `plutil -lint Support/Info.plist`。 |
 | Shell 脚本 | `bash -n Scripts/*.sh`。 |
 | 架构或依赖 | `swift build -c release --triple x86_64-apple-macosx26.0 --scratch-path .build/ci-x86_64`。 |
-| 发行打包 | 校验 ZIP 的 SHA-256、`lipo -archs` 同时包含 arm64/x86_64，并检查 `codesign`。不要启动 ad-hoc 发行包代替稳定签名调试包。 |
+| 发行打包 | 校验 ZIP 的 SHA-256、`lipo -archs` 同时包含 arm64/x86_64，并检查 `codesign`、`stapler validate` 与 `spctl --assess`。不要启动发行包代替固定路径的稳定签名调试包。 |
 
 若环境不允许完成某项运行时验证，交付时必须明确写出未验证项，不能把“编译通过”描述成“功能已验证”。
 
