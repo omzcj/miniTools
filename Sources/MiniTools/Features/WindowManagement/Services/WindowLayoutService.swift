@@ -66,7 +66,11 @@ enum WindowLayoutService {
             ) else {
                 throw WindowLayoutError.unreadableWindowFrame
             }
-            try setFrame(target, of: window)
+            try setFrame(
+                target,
+                of: window,
+                processIdentifier: application.processIdentifier
+            )
         }.value
     }
 
@@ -91,7 +95,11 @@ enum WindowLayoutService {
                 from: geometries[currentIndex].visibleFrame,
                 to: geometries[nextIndex].visibleFrame
             )
-            try setFrame(target, of: window)
+            try setFrame(
+                target,
+                of: window,
+                processIdentifier: application.processIdentifier
+            )
         }.value
     }
 
@@ -109,7 +117,11 @@ enum WindowLayoutService {
                 for: currentFrame,
                 geometries: geometries
             ).visibleFrame
-            try setFrame(WindowGeometry.centeredFrame(currentFrame, in: visibleFrame), of: window)
+            try setFrame(
+                WindowGeometry.centeredFrame(currentFrame, in: visibleFrame),
+                of: window,
+                processIdentifier: application.processIdentifier
+            )
         }.value
     }
 
@@ -256,7 +268,11 @@ enum WindowLayoutService {
         return CGRect(origin: position, size: size)
     }
 
-    private static func setFrame(_ frame: CGRect, of window: AXUIElement) throws {
+    private static func setFrame(
+        _ frame: CGRect,
+        of window: AXUIElement,
+        processIdentifier: pid_t
+    ) throws {
         var position = frame.origin
         var size = frame.size
         guard
@@ -268,7 +284,30 @@ enum WindowLayoutService {
 
         try set(positionValue, attribute: kAXPositionAttribute as CFString, on: window)
         try set(sizeValue, attribute: kAXSizeAttribute as CFString, on: window)
-        try set(positionValue, attribute: kAXPositionAttribute as CFString, on: window)
+
+        // Safari and other AppKit applications may finish AXSize changes
+        // asynchronously. An immediate second AXPosition write can cause macOS
+        // to restore the previous tiled-window frame. Let the resize settle,
+        // then correct only axes whose requested size was actually accepted.
+        Thread.sleep(forTimeInterval: 0.08)
+        let actualFrame = WindowServerWindowInspector.frontmostVisibleWindowFrame(
+            processIdentifier: processIdentifier
+        ) ?? (try? readFrame(of: window))
+        guard
+            let actualFrame,
+            var correctedPosition = WindowGeometry.correctedOriginAfterApplyingFrame(
+                actualFrame: actualFrame,
+                targetFrame: frame
+            ),
+            let correctedPositionValue = AXValueCreate(.cgPoint, &correctedPosition)
+        else {
+            return
+        }
+        try set(
+            correctedPositionValue,
+            attribute: kAXPositionAttribute as CFString,
+            on: window
+        )
     }
 
     private static func set(

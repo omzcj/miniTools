@@ -47,6 +47,31 @@ enum WindowGeometry {
             && abs(lhs.height - rhs.height) <= tolerance
     }
 
+    static func correctedOriginAfterApplyingFrame(
+        actualFrame: CGRect,
+        targetFrame: CGRect,
+        tolerance: CGFloat = 10
+    ) -> CGPoint? {
+        var correctedOrigin = actualFrame.origin
+        var needsCorrection = false
+
+        // Only correct an axis after the corresponding size has settled. Some
+        // applications constrain a requested size; moving them again while the
+        // resize is pending can restore the previous macOS tiled-window frame.
+        if abs(actualFrame.width - targetFrame.width) <= tolerance,
+           abs(actualFrame.minX - targetFrame.minX) > tolerance {
+            correctedOrigin.x = targetFrame.minX
+            needsCorrection = true
+        }
+        if abs(actualFrame.height - targetFrame.height) <= tolerance,
+           abs(actualFrame.minY - targetFrame.minY) > tolerance {
+            correctedOrigin.y = targetFrame.minY
+            needsCorrection = true
+        }
+
+        return needsCorrection ? correctedOrigin : nil
+    }
+
     private static func constrainedCandidateIndex(
         currentFrame: CGRect,
         candidates: [CGRect],
