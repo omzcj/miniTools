@@ -14,15 +14,29 @@ enum WindowAccessibilityHealth {
 
 enum WindowServerWindowInspector {
     static func hasVisibleWindow(processIdentifier: pid_t) -> Bool {
+        frontmostVisibleWindowFrame(processIdentifier: processIdentifier) != nil
+    }
+
+    static func frontmostVisibleWindowFrame(processIdentifier: pid_t) -> CGRect? {
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         guard let windows = CGWindowListCopyWindowInfo(
             options,
             kCGNullWindowID
         ) as? [[String: Any]] else {
-            return false
+            return nil
         }
 
-        return windows.contains { window in
+        return frontmostVisibleWindowFrame(
+            processIdentifier: processIdentifier,
+            windows: windows
+        )
+    }
+
+    static func frontmostVisibleWindowFrame(
+        processIdentifier: pid_t,
+        windows: [[String: Any]]
+    ) -> CGRect? {
+        windows.compactMap { window -> CGRect? in
             guard
                 let owner = window[kCGWindowOwnerPID as String] as? NSNumber,
                 owner.int32Value == processIdentifier,
@@ -35,12 +49,12 @@ enum WindowServerWindowInspector {
                     dictionaryRepresentation: boundsDictionary as CFDictionary
                 )
             else {
-                return false
+                return nil
             }
 
             // Ignore tiny helper/transition windows that do not represent an
             // adjustable application window.
-            return bounds.width >= 100 && bounds.height >= 100
-        }
+            return bounds.width >= 100 && bounds.height >= 100 ? bounds : nil
+        }.first
     }
 }

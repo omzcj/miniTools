@@ -22,11 +22,20 @@ enum WindowGeometry {
         tolerance: CGFloat = 10
     ) -> CGRect? {
         guard let first = candidates.first else { return nil }
-        if candidates.count > 1, framesAreClose(currentFrame, first, tolerance: tolerance) {
-            return candidates[1]
+        guard candidates.count > 1 else { return first }
+
+        if let currentIndex = candidates.firstIndex(where: {
+            framesAreClose(currentFrame, $0, tolerance: tolerance)
+        }) {
+            return candidates[(currentIndex + 1) % candidates.count]
         }
-        if candidates.count > 1, framesAreClose(currentFrame, candidates[1], tolerance: tolerance) {
-            return first
+
+        if let currentIndex = constrainedCandidateIndex(
+            currentFrame: currentFrame,
+            candidates: candidates,
+            tolerance: tolerance
+        ) {
+            return candidates[(currentIndex + 1) % candidates.count]
         }
         return first
     }
@@ -36,6 +45,30 @@ enum WindowGeometry {
             && abs(lhs.minY - rhs.minY) <= tolerance
             && abs(lhs.width - rhs.width) <= tolerance
             && abs(lhs.height - rhs.height) <= tolerance
+    }
+
+    private static func constrainedCandidateIndex(
+        currentFrame: CGRect,
+        candidates: [CGRect],
+        tolerance: CGFloat
+    ) -> Int? {
+        let components: [(CGRect) -> CGFloat] = [
+            { $0.minX }, { $0.minY }, { $0.width }, { $0.height }
+        ]
+        let varyingComponents = components.compactMap { component -> ((CGRect) -> CGFloat, CGFloat)? in
+            let values = candidates.map(component)
+            guard let minimum = values.min(), let maximum = values.max() else { return nil }
+            let spread = maximum - minimum
+            return spread > tolerance ? (component, spread) : nil
+        }
+        guard !varyingComponents.isEmpty else { return nil }
+
+        return candidates.firstIndex { candidate in
+            varyingComponents.allSatisfy { component, spread in
+                let allowedDifference = max(tolerance, spread * 0.1)
+                return abs(component(currentFrame) - component(candidate)) <= allowedDifference
+            }
+        }
     }
 
     static func appKitToAccessibility(_ rect: CGRect, primaryScreenMaxY: CGFloat) -> CGRect {
