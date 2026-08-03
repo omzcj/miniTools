@@ -273,6 +273,9 @@ enum WindowLayoutService {
         of window: AXUIElement,
         processIdentifier: pid_t
     ) throws {
+        let initialFrame = WindowServerWindowInspector.frontmostVisibleWindowFrame(
+            processIdentifier: processIdentifier
+        ) ?? (try? readFrame(of: window))
         var position = frame.origin
         var size = frame.size
         guard
@@ -285,14 +288,17 @@ enum WindowLayoutService {
         try set(positionValue, attribute: kAXPositionAttribute as CFString, on: window)
         try set(sizeValue, attribute: kAXSizeAttribute as CFString, on: window)
 
-        // Safari and other AppKit applications may finish AXSize changes
-        // asynchronously. An immediate second AXPosition write can cause macOS
-        // to restore the previous tiled-window frame. Let the resize settle,
-        // then correct only axes whose requested size was actually accepted.
-        Thread.sleep(forTimeInterval: 0.08)
-        let actualFrame = WindowServerWindowInspector.frontmostVisibleWindowFrame(
+        // Safari and other AppKit applications finish AXSize changes
+        // asynchronously and can shift the window while doing so. An immediate
+        // second AXPosition write restores the previous tiled frame, while a
+        // fixed delay can still observe the old size. Wait until WindowServer
+        // reports a stable size, then place the window one final time.
+        let actualFrame = waitForFrameToSettle(
+            initialFrame: initialFrame,
+            targetFrame: frame,
+            window: window,
             processIdentifier: processIdentifier
-        ) ?? (try? readFrame(of: window))
+        )
         guard
             let actualFrame,
             var correctedPosition = WindowGeometry.correctedOriginAfterApplyingFrame(
@@ -308,6 +314,50 @@ enum WindowLayoutService {
             attribute: kAXPositionAttribute as CFString,
             on: window
         )
+    }
+
+    private static func waitForFrameToSettle(
+        initialFrame: CGRect?,
+        targetFrame: CGRect,
+        window: AXUIElement,
+        processIdentifier: pid_t
+    ) -> CGRect? {
+        guard let initialFrame else {
+            Thread.sleep(forTimeInterval: 0.2)
+            return currentFrame(of: window, processIdentifier: processIdentifier)
+        }
+
+        var tracker = WindowFrameSettlementTracker(
+            initialFrame: initialFrame,
+            targetFrame: targetFrame
+        )
+        var latestFrame = initialFrame
+        let deadline = ProcessInfo.processInfo.systemUptime + 0.5
+
+        repeat {
+            Thread.sleep(forTimeInterval: 0.025)
+            guard let frame = currentFrame(
+                of: window,
+                processIdentifier: processIdentifier
+            ) else {
+                continue
+            }
+            latestFrame = frame
+            if tracker.record(frame) {
+                return frame
+            }
+        } while ProcessInfo.processInfo.systemUptime < deadline
+
+        return latestFrame
+    }
+
+    private static func currentFrame(
+        of window: AXUIElement,
+        processIdentifier: pid_t
+    ) -> CGRect? {
+        WindowServerWindowInspector.frontmostVisibleWindowFrame(
+            processIdentifier: processIdentifier
+        ) ?? (try? readFrame(of: window))
     }
 
     private static func set(

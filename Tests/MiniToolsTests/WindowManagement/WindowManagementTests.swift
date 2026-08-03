@@ -150,15 +150,16 @@ final class WindowManagementTests: XCTestCase {
         )
     }
 
-    func testDoesNotRepositionAnApplicationWhoseHeightWasConstrained() {
+    func testCorrectsPositionAfterApplicationConstrainsRequestedHeight() {
         let target = CGRect(x: -1920, y: 0, width: 1280, height: 1080)
-        let safariResult = CGRect(x: -1920, y: 30, width: 1280, height: 1050)
+        let safariResult = CGRect(x: -1600, y: 30, width: 1280, height: 1050)
 
-        XCTAssertNil(
+        XCTAssertEqual(
             WindowGeometry.correctedOriginAfterApplyingFrame(
                 actualFrame: safariResult,
                 targetFrame: target
-            )
+            ),
+            target.origin
         )
     }
 
@@ -174,16 +175,33 @@ final class WindowManagementTests: XCTestCase {
         )
     }
 
-    func testCorrectsOnlyTheAxisWhoseRequestedSizeWasAccepted() {
+    func testDoesNotCorrectPositionThatAlreadyMatchesTarget() {
         let target = CGRect(x: 100, y: 40, width: 800, height: 600)
 
-        XCTAssertEqual(
+        XCTAssertNil(
             WindowGeometry.correctedOriginAfterApplyingFrame(
-                actualFrame: CGRect(x: 125, y: 70, width: 900, height: 600),
+                actualFrame: CGRect(x: 100, y: 40, width: 900, height: 550),
                 targetFrame: target
-            ),
-            CGPoint(x: 125, y: 40)
+            )
         )
+    }
+
+    func testFrameSettlementWaitsForResizeAndStableSamples() {
+        let initial = CGRect(x: -1440, y: 555, width: 960, height: 525)
+        let target = CGRect(x: -1920, y: 0, width: 1280, height: 1080)
+        var tracker = WindowFrameSettlementTracker(
+            initialFrame: initial,
+            targetFrame: target,
+            requiredStableSamples: 2
+        )
+
+        XCTAssertFalse(tracker.record(initial))
+        XCTAssertFalse(tracker.record(initial))
+
+        let constrained = CGRect(x: -1600, y: 30, width: 1280, height: 1050)
+        XCTAssertFalse(tracker.record(constrained))
+        XCTAssertFalse(tracker.record(constrained))
+        XCTAssertTrue(tracker.record(constrained))
     }
 
     func testWindowServerInspectorReturnsFrontmostAdjustableWindowFrame() {

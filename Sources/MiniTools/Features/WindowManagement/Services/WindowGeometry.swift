@@ -6,6 +6,58 @@ struct WindowLayoutScreenGeometry: Equatable, Sendable {
     let visibleFrame: CGRect
 }
 
+struct WindowFrameSettlementTracker {
+    private let initialSize: CGSize
+    private let tolerance: CGFloat
+    private let requiredStableSamples: Int
+    private var previousSize: CGSize
+    private var observedResize: Bool
+    private var stableSampleCount = 0
+
+    init(
+        initialFrame: CGRect,
+        targetFrame: CGRect,
+        tolerance: CGFloat = 1,
+        requiredStableSamples: Int = 4
+    ) {
+        initialSize = initialFrame.size
+        self.tolerance = tolerance
+        self.requiredStableSamples = requiredStableSamples
+        previousSize = initialFrame.size
+        observedResize = Self.sizesAreClose(
+            initialFrame.size,
+            targetFrame.size,
+            tolerance: tolerance
+        )
+    }
+
+    mutating func record(_ frame: CGRect) -> Bool {
+        let currentSize = frame.size
+        if !Self.sizesAreClose(currentSize, initialSize, tolerance: tolerance) {
+            observedResize = true
+        }
+
+        if observedResize,
+           Self.sizesAreClose(currentSize, previousSize, tolerance: tolerance) {
+            stableSampleCount += 1
+        } else {
+            stableSampleCount = 0
+        }
+        previousSize = currentSize
+
+        return observedResize && stableSampleCount >= requiredStableSamples
+    }
+
+    private static func sizesAreClose(
+        _ lhs: CGSize,
+        _ rhs: CGSize,
+        tolerance: CGFloat
+    ) -> Bool {
+        abs(lhs.width - rhs.width) <= tolerance
+            && abs(lhs.height - rhs.height) <= tolerance
+    }
+}
+
 enum WindowGeometry {
     static func targetFrame(for unitFrame: UnitWindowFrame, in visibleFrame: CGRect) -> CGRect {
         CGRect(
@@ -52,24 +104,13 @@ enum WindowGeometry {
         targetFrame: CGRect,
         tolerance: CGFloat = 10
     ) -> CGPoint? {
-        var correctedOrigin = actualFrame.origin
-        var needsCorrection = false
-
-        // Only correct an axis after the corresponding size has settled. Some
-        // applications constrain a requested size; moving them again while the
-        // resize is pending can restore the previous macOS tiled-window frame.
-        if abs(actualFrame.width - targetFrame.width) <= tolerance,
-           abs(actualFrame.minX - targetFrame.minX) > tolerance {
-            correctedOrigin.x = targetFrame.minX
-            needsCorrection = true
+        guard
+            abs(actualFrame.minX - targetFrame.minX) > tolerance
+                || abs(actualFrame.minY - targetFrame.minY) > tolerance
+        else {
+            return nil
         }
-        if abs(actualFrame.height - targetFrame.height) <= tolerance,
-           abs(actualFrame.minY - targetFrame.minY) > tolerance {
-            correctedOrigin.y = targetFrame.minY
-            needsCorrection = true
-        }
-
-        return needsCorrection ? correctedOrigin : nil
+        return targetFrame.origin
     }
 
     private static func constrainedCandidateIndex(
