@@ -123,6 +123,54 @@ final class WindowManagementTests: XCTestCase {
     }
 
     @MainActor
+    func testCyclesByPlacementWhenApplicationConstrainsWindowSize() {
+        let upper = CGRect(x: -1920, y: 0, width: 1920, height: 540)
+        let lower = CGRect(x: -1920, y: 540, width: 1920, height: 540)
+
+        XCTAssertEqual(
+            WindowGeometry.nextTarget(
+                currentFrame: CGRect(x: -1920, y: 30, width: 1920, height: 600),
+                candidates: [upper, lower]
+            ),
+            lower
+        )
+        XCTAssertEqual(
+            WindowGeometry.nextTarget(
+                currentFrame: CGRect(x: -1920, y: 555, width: 960, height: 600),
+                candidates: [upper, lower]
+            ),
+            upper
+        )
+        XCTAssertEqual(
+            WindowGeometry.nextTarget(
+                currentFrame: CGRect(x: -1800, y: 250, width: 900, height: 600),
+                candidates: [upper, lower]
+            ),
+            upper
+        )
+    }
+
+    func testWindowServerInspectorReturnsFrontmostAdjustableWindowFrame() {
+        let processIdentifier: pid_t = 42
+        let tinyFrame = CGRect(x: 0, y: 0, width: 80, height: 30)
+        let frontmostFrame = CGRect(x: -1920, y: 555, width: 960, height: 600)
+        let backgroundFrame = CGRect(x: -1920, y: 0, width: 1920, height: 600)
+        let windows = [
+            windowServerRecord(pid: processIdentifier, frame: tinyFrame),
+            windowServerRecord(pid: processIdentifier, frame: frontmostFrame),
+            windowServerRecord(pid: processIdentifier, frame: backgroundFrame)
+        ]
+
+        XCTAssertEqual(
+            WindowServerWindowInspector.frontmostVisibleWindowFrame(
+                processIdentifier: processIdentifier,
+                windows: windows
+            ),
+            frontmostFrame
+        )
+    }
+
+    @MainActor
     func testConvertsAppKitCoordinatesToAccessibilityCoordinates() {
         let appKitRect = CGRect(x: -1000, y: 1080, width: 1000, height: 800)
         let converted = WindowGeometry.appKitToAccessibility(appKitRect, primaryScreenMaxY: 1080)
@@ -203,5 +251,14 @@ final class WindowManagementTests: XCTestCase {
             ),
             CGPoint(x: 2000, y: 500)
         )
+    }
+
+    private func windowServerRecord(pid: pid_t, frame: CGRect) -> [String: Any] {
+        [
+            kCGWindowOwnerPID as String: NSNumber(value: pid),
+            kCGWindowLayer as String: NSNumber(value: 0),
+            kCGWindowAlpha as String: NSNumber(value: 1),
+            kCGWindowBounds as String: frame.dictionaryRepresentation
+        ]
     }
 }

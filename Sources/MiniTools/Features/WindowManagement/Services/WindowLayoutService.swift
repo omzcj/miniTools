@@ -200,20 +200,29 @@ enum WindowLayoutService {
         of window: AXUIElement,
         for application: TargetApplication
     ) throws -> CGRect {
+        let accessibilityFrame: CGRect
         do {
-            return try readFrame(of: window)
+            accessibilityFrame = try readFrame(of: window)
         } catch WindowLayoutError.unreadableWindowFrame {
             Thread.sleep(forTimeInterval: 0.04)
             if let recoveredFrame = try? readFrame(of: window) {
-                return recoveredFrame
+                accessibilityFrame = recoveredFrame
+            } else {
+                if WindowServerWindowInspector.hasVisibleWindow(
+                    processIdentifier: application.processIdentifier
+                ) {
+                    throw WindowLayoutError.invalidAccessibilityWindowState(application.name)
+                }
+                throw WindowLayoutError.unreadableWindowFrame
             }
-            if WindowServerWindowInspector.hasVisibleWindow(
-                processIdentifier: application.processIdentifier
-            ) {
-                throw WindowLayoutError.invalidAccessibilityWindowState(application.name)
-            }
-            throw WindowLayoutError.unreadableWindowFrame
         }
+
+        // Some applications report the last requested AX frame instead of the
+        // actual constrained frame. WindowServer is the source of truth for
+        // deciding which layout candidate should be selected next.
+        return WindowServerWindowInspector.frontmostVisibleWindowFrame(
+            processIdentifier: application.processIdentifier
+        ) ?? accessibilityFrame
     }
 
     private static func readFrame(of window: AXUIElement) throws -> CGRect {
