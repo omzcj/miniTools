@@ -150,6 +150,42 @@ final class WindowManagementTests: XCTestCase {
         )
     }
 
+    func testDoesNotRepositionAnApplicationWhoseHeightWasConstrained() {
+        let target = CGRect(x: -1920, y: 0, width: 1280, height: 1080)
+        let safariResult = CGRect(x: -1920, y: 30, width: 1280, height: 1050)
+
+        XCTAssertNil(
+            WindowGeometry.correctedOriginAfterApplyingFrame(
+                actualFrame: safariResult,
+                targetFrame: target
+            )
+        )
+    }
+
+    func testCorrectsPositionAfterRequestedSizeHasSettled() {
+        let target = CGRect(x: 100, y: 40, width: 800, height: 600)
+
+        XCTAssertEqual(
+            WindowGeometry.correctedOriginAfterApplyingFrame(
+                actualFrame: CGRect(x: 125, y: 70, width: 800, height: 600),
+                targetFrame: target
+            ),
+            target.origin
+        )
+    }
+
+    func testCorrectsOnlyTheAxisWhoseRequestedSizeWasAccepted() {
+        let target = CGRect(x: 100, y: 40, width: 800, height: 600)
+
+        XCTAssertEqual(
+            WindowGeometry.correctedOriginAfterApplyingFrame(
+                actualFrame: CGRect(x: 125, y: 70, width: 900, height: 600),
+                targetFrame: target
+            ),
+            CGPoint(x: 125, y: 40)
+        )
+    }
+
     func testWindowServerInspectorReturnsFrontmostAdjustableWindowFrame() {
         let processIdentifier: pid_t = 42
         let tinyFrame = CGRect(x: 0, y: 0, width: 80, height: 30)
