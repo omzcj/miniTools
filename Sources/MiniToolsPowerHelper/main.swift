@@ -195,32 +195,36 @@ private final class ListenerDelegate: NSObject, NSXPCListenerDelegate, @unchecke
     }
 }
 
-private let state = PowerState()
-state.queue.sync {
-    if state.ownsSleepDisable() {
-        state.restore(reason: "helper launch recovery")
+private func runPowerHelper() -> Never {
+    let state = PowerState()
+    state.queue.sync {
+        if state.ownsSleepDisable() {
+            state.restore(reason: "helper launch recovery")
+        }
     }
+
+    let delegate = ListenerDelegate(state: state)
+    let listener = NSXPCListener(machServiceName: PowerHelperIPC.machServiceName)
+    listener.delegate = delegate
+    listener.resume()
+
+    let recoveryTimer = DispatchSource.makeTimerSource(
+        queue: DispatchQueue(label: "com.omzcj.minitools.power-helper.recovery")
+    )
+    recoveryTimer.schedule(
+        deadline: .now() + PowerHelperIPC.recoveryRetrySeconds,
+        repeating: PowerHelperIPC.recoveryRetrySeconds,
+        leeway: .seconds(5)
+    )
+    recoveryTimer.setEventHandler {
+        delegate.retryRecoveryIfUnattended()
+        if delegate.isIdle() {
+            exit(EXIT_SUCCESS)
+        }
+    }
+    recoveryTimer.resume()
+
+    dispatchMain()
 }
 
-private let delegate = ListenerDelegate(state: state)
-let listener = NSXPCListener(machServiceName: PowerHelperIPC.machServiceName)
-listener.delegate = delegate
-listener.resume()
-
-let recoveryTimer = DispatchSource.makeTimerSource(
-    queue: DispatchQueue(label: "com.omzcj.minitools.power-helper.recovery")
-)
-recoveryTimer.schedule(
-    deadline: .now() + PowerHelperIPC.recoveryRetrySeconds,
-    repeating: PowerHelperIPC.recoveryRetrySeconds,
-    leeway: .seconds(5)
-)
-recoveryTimer.setEventHandler {
-    delegate.retryRecoveryIfUnattended()
-    if delegate.isIdle() {
-        exit(EXIT_SUCCESS)
-    }
-}
-recoveryTimer.resume()
-
-dispatchMain()
+runPowerHelper()

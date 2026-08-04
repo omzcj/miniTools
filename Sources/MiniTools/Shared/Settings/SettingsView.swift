@@ -242,6 +242,17 @@ private struct SettingsCategoryDetail: View {
                     subtitle: "用于控制 MacBook 合盖后的系统睡眠"
                 )
             }
+            if let summary = closedLidRunningController.lastStopSummary {
+                LabeledContent {
+                    Text(summary)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    settingsLabel(
+                        title: "最近关闭",
+                        subtitle: "记录最近一次会话的关闭原因"
+                    )
+                }
+            }
         } header: {
             Text("后台服务")
         } footer: {
