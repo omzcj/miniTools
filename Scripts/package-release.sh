@@ -26,6 +26,8 @@ APP_OUTPUT_PATH="$APP_DIR" \
     "$ROOT/Scripts/build-universal-app.sh" "$APP_VERSION"
 
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+codesign --verify --strict --verbose=2 \
+    "$APP_DIR/Contents/MacOS/MiniToolsPowerHelper"
 
 rm -f "$ARCHIVE_PATH" "$CHECKSUM_PATH"
 ditto -c -k --sequesterRsrc --keepParent "$APP_DIR" "$ARCHIVE_PATH"

@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="miniTools"
 EXECUTABLE_NAME="MiniTools"
+HELPER_EXECUTABLE_NAME="MiniToolsPowerHelper"
 BUILD_CONFIGURATION="${1:-${BUILD_CONFIGURATION:-release}}"
 BUILD_DIR="$ROOT/.build/$BUILD_CONFIGURATION"
 APP_DIR="$ROOT/dist/$APP_NAME.app"
@@ -71,5 +72,6 @@ cd "$ROOT"
 swift build -c "$BUILD_CONFIGURATION"
 
 CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+MINITOOLS_POWER_HELPER_PATH="$BUILD_DIR/$HELPER_EXECUTABLE_NAME" \
     "$ROOT/Scripts/assemble-app.sh" "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_DIR"
 echo "Configuration: $BUILD_CONFIGURATION"

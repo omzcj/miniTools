@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${1:?Usage: build-universal-app.sh <version>}"
 EXECUTABLE_NAME="MiniTools"
+HELPER_EXECUTABLE_NAME="MiniToolsPowerHelper"
 APP_DIR="${APP_OUTPUT_PATH:-"$ROOT/dist/miniTools.app"}"
 ARM_BUILD_DIR="$ROOT/.build/release-arm64"
 INTEL_BUILD_DIR="$ROOT/.build/release-x86_64"
@@ -37,15 +38,28 @@ lipo -create \
     "$INTEL_BUILD_DIR/x86_64-apple-macosx/release/$EXECUTABLE_NAME" \
     -output "$UNIVERSAL_DIR/$EXECUTABLE_NAME"
 
+lipo -create \
+    "$ARM_BUILD_DIR/arm64-apple-macosx/release/$HELPER_EXECUTABLE_NAME" \
+    "$INTEL_BUILD_DIR/x86_64-apple-macosx/release/$HELPER_EXECUTABLE_NAME" \
+    -output "$UNIVERSAL_DIR/$HELPER_EXECUTABLE_NAME"
+
 ARCHITECTURES="$(lipo -archs "$UNIVERSAL_DIR/$EXECUTABLE_NAME")"
 if [[ "$ARCHITECTURES" != *"arm64"* || "$ARCHITECTURES" != *"x86_64"* ]]; then
     echo "Universal executable is missing an architecture: $ARCHITECTURES" >&2
     exit 1
 fi
 
+HELPER_ARCHITECTURES="$(lipo -archs "$UNIVERSAL_DIR/$HELPER_EXECUTABLE_NAME")"
+if [[ "$HELPER_ARCHITECTURES" != *"arm64"* || "$HELPER_ARCHITECTURES" != *"x86_64"* ]]; then
+    echo "Universal helper is missing an architecture: $HELPER_ARCHITECTURES" >&2
+    exit 1
+fi
+
 APP_VERSION="$VERSION" \
 APP_BUILD="${APP_BUILD:-1}" \
 CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+MINITOOLS_POWER_HELPER_PATH="$UNIVERSAL_DIR/$HELPER_EXECUTABLE_NAME" \
     "$ROOT/Scripts/assemble-app.sh" "$UNIVERSAL_DIR/$EXECUTABLE_NAME" "$APP_DIR"
 
 echo "Architectures: $ARCHITECTURES"
+echo "Helper architectures: $HELPER_ARCHITECTURES"

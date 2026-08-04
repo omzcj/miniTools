@@ -6,6 +6,7 @@ final class ApplicationContext: ObservableObject {
     private let cursorHighlightPreviewController = CursorHighlightController()
     @Published private(set) var shortcutCoordinator: GlobalShortcutCoordinator?
     @Published private(set) var mouseBindingCoordinator: MouseBindingCoordinator?
+    @Published private(set) var closedLidRunningController: ClosedLidRunningController?
 
     init(settings: AppSettings = AppSettings()) {
         self.settings = settings
@@ -17,6 +18,10 @@ final class ApplicationContext: ObservableObject {
 
     func install(mouseBindingCoordinator: MouseBindingCoordinator) {
         self.mouseBindingCoordinator = mouseBindingCoordinator
+    }
+
+    func install(closedLidRunningController: ClosedLidRunningController) {
+        self.closedLidRunningController = closedLidRunningController
     }
 
     func previewCursorHighlight(_ style: CursorHighlightStyle) {

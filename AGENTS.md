@@ -5,7 +5,7 @@
 
 ## 项目定位
 
-- miniTools 是 macOS 26+ 的菜单栏效率工具，核心场景是键盘优先的编码转换、Safari 窗口切换、窗口管理和鼠标侧键动作。
+- miniTools 是 macOS 26+ 的菜单栏效率工具，核心场景是键盘优先的编码转换、Safari 窗口切换、窗口管理、鼠标侧键动作和手动合盖运行。
 - 技术栈是 Swift 6.2、SwiftUI、AppKit、ApplicationServices、Carbon、CoreImage 与 Vision；项目由 Swift Package Manager 构建。
 - 用户可见品牌写作 `miniTools`；Swift 模块、可执行文件和 Target 使用 `MiniTools`。
 - Bundle ID 是 `com.omzcj.minitools`，应用为 `LSUIElement`，不显示 Dock 图标。
@@ -56,6 +56,17 @@
 - 拖动阈值是相对当前屏幕宽高的比例，不是固定 pt。当前允许范围和默认值以 `MouseGestureConfiguration` 为准。
 - 拖动反馈显示路径动画，不显示文字 Toast。
 
+### 合盖运行
+
+- 状态栏“合盖运行”是单一可勾选菜单项：未勾选表示关闭，勾选表示已开启；点击直接切换。
+- 合盖运行仅允许用户手动开启或关闭，不检测 Codex、Claude 或其他进程状态，也不增加自动触发规则。
+- helper 只允许开启、关闭和查询合盖运行状态，不得接受任意命令、路径或 `pmset` 参数。
+- 最长时长可选 2、4、8、12 小时或不限时，默认 8 小时；不限时只取消超时保护。
+- 开启后发生开盖、电池供电且电量低于 20%、严重/临界热状态、主应用连接异常或重启时必须恢复系统睡眠。
+- `disablesleep` 是全局状态。检测到其他程序已经开启且 miniTools 没有恢复哨兵时，应拒绝接管，不能覆盖其他程序的状态。
+- helper 必须先写 root 所有的恢复哨兵，再执行 `pmset -a disablesleep 1`；恢复时先成功执行 `pmset -a disablesleep 0`，再删除哨兵。
+- 非“应用程序”目录中的开发构建不得访问 `SMAppService` 状态或注册正式 helper，避免破坏 Background Task Management 记录。
+
 ## 代码结构与职责
 
 | 路径 | 职责与修改边界 |
@@ -66,6 +77,9 @@
 | `Features/SafariWindows` | Safari AX 窗口读取、标题推导、排序、布局、选择和激活。保持 Service、ViewModel、View 分层。 |
 | `Features/WindowManagement` | 窗口几何、布局命令、AX 健康检查、跨屏鼠标移动和定位动画。 |
 | `Features/MouseBindings` | 侧键事件监听、手势识别、动作配置和拖动路径反馈。 |
+| `Features/ClosedLidRunning` | 合盖运行会话、安全监测、后台服务状态和 XPC 客户端。 |
+| `Sources/MiniToolsPowerSupport` | 主应用与 root helper 共用的最小 XPC 协议、签名要求和 `pmset` 解析。 |
+| `Sources/MiniToolsPowerHelper` | 受 `SMAppService` 管理的 root LaunchDaemon，只负责合盖运行开关与异常恢复。 |
 | `Shared` | Accessibility、统一 `AppCommand`、全局快捷键、设置持久化和通用 UI。跨功能抽象应有两个以上实际调用方再放入这里。 |
 | `Tests/MiniToolsTests` | 按功能目录放置单元测试。新增行为应优先在所属功能下补测试，而不是建立大型跨模块测试文件。 |
 | `Scripts` | 可复现的本地构建、稳定签名调试、通用包构建与发行打包。签名和输出目录的隔离属于关键行为。 |
@@ -90,6 +104,7 @@
 | Safari 窗口读取与前置 | 辅助功能（Accessibility）。不使用 AppleScript 自动化权限。 |
 | 活动窗口移动、缩放和跨屏 | 辅助功能（Accessibility）。 |
 | Button 4/5 监听与拦截 | 辅助功能 + 输入监控（Input Monitoring）。 |
+| 合盖运行 | 首次使用需管理员批准后台 LaunchDaemon；不依赖辅助功能或输入监控。 |
 
 权限异常先检查应用路径、Bundle ID、代码签名的 Designated Requirement 和目标应用 AX 状态，不要直接建议用户反复重置整个 TCC 数据库。
 
@@ -112,6 +127,8 @@ CODE_SIGN_IDENTITY="Apple Development: Name (TEAMID)" ./Scripts/build-app.sh
 ```
 
 `Scripts/package-release.sh` 只接受 Developer ID Application 身份，并生成启用 Hardened Runtime 和安全时间戳的通用发行包；`Scripts/notarize-release.sh` 负责上传 Apple 公证、staple ticket、验证 Gatekeeper 并重新生成最终 ZIP 和 SHA-256。不要把本地 Apple Development 签名用于公开发行，也不要让发行流程回退到 ad-hoc。
+
+合盖运行 helper 必须和主应用分别生成 arm64/x86_64 通用二进制，先签署 helper，再签署外层应用。正式 helper 仅由 `/Applications/miniTools.app` 管理；`dist/miniTools.app` 不得注册或查询正式后台服务。
 
 ## 最低验证要求
 

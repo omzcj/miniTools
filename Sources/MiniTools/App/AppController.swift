@@ -6,6 +6,9 @@ final class AppController: NSObject {
     private var settings: AppSettings { applicationContext.settings }
     private let statusMenuController = StatusMenuController()
     private let windowControlController = WindowControlController()
+    private lazy var closedLidRunningController = ClosedLidRunningController(
+        settings: settings
+    )
     private let featurePanelController: FeaturePanelController
     private lazy var commandDispatcher = AppCommandDispatcher(
         settings: settings,
@@ -45,13 +48,18 @@ final class AppController: NSObject {
         shortcutCoordinator.onStateChanged = { [weak self] in
             self?.updateStatusMenu()
         }
+        closedLidRunningController.onStateChanged = { [weak self] in
+            self?.updateStatusMenu()
+        }
         applicationContext.install(shortcutCoordinator: shortcutCoordinator)
         applicationContext.install(mouseBindingCoordinator: mouseBindingCoordinator)
+        applicationContext.install(closedLidRunningController: closedLidRunningController)
 
         settingsWindowController = SettingsWindowController(
             settings: settings,
             shortcutCoordinator: shortcutCoordinator,
             mouseBindingCoordinator: mouseBindingCoordinator,
+            closedLidRunningController: closedLidRunningController,
             previewCursorHighlight: applicationContext.previewCursorHighlight
         )
         featurePanelController.onOpenSettings = { [weak self] in
@@ -64,10 +72,15 @@ final class AppController: NSObject {
         statusMenuController.onOpenSettings = { [weak self] in
             self?.showSettings()
         }
+        statusMenuController.onToggleClosedLidRunning = { [weak self] in
+            self?.closedLidRunningController.toggle()
+        }
         statusMenuController.onMenuWillOpen = { [weak self] in
+            self?.closedLidRunningController.refresh()
             self?.updateStatusMenu()
         }
         statusMenuController.start()
+        closedLidRunningController.start()
         shortcutCoordinator.start()
         mouseBindingCoordinator.start()
         updateStatusMenu()
@@ -91,6 +104,7 @@ final class AppController: NSObject {
         featurePanelPreparationTask?.cancel()
         featurePanelPreparationTask = nil
         mouseBindingCoordinator?.stop()
+        closedLidRunningController.stop()
         featurePanelController.stop()
     }
 
@@ -98,7 +112,8 @@ final class AppController: NSObject {
         guard shortcutCoordinator != nil else { return }
         statusMenuController.update(
             settings: settings,
-            shortcutCoordinator: shortcutCoordinator
+            shortcutCoordinator: shortcutCoordinator,
+            closedLidRunningController: closedLidRunningController
         )
     }
 }
