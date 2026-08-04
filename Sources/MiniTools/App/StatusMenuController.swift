@@ -88,6 +88,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
         closedLidRunningItem?.isEnabled = !closedLidRunningController.isBusy
         closedLidRunningItem?.toolTip = closedLidRunningController.lastError
+            ?? closedLidRunningController.lastStopSummary
         statusItem?.button?.image = statusBarIcon(
             isClosedLidRunning: closedLidRunningController.isEnabled
         )
