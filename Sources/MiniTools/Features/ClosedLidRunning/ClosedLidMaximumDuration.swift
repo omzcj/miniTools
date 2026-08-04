@@ -1,6 +1,6 @@
 import Foundation
 
-enum ClosedLidMaximumDuration: String, CaseIterable, Codable, Identifiable {
+enum ClosedLidMaximumDuration: String, CaseIterable, Codable, Identifiable, Sendable {
     case twoHours
     case fourHours
     case eightHours
