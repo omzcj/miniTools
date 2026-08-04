@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="miniTools"
 EXECUTABLE_NAME="MiniTools"
 EXECUTABLE_PATH="${1:?Usage: assemble-app.sh <executable-path> [app-path]}"
+HELPER_EXECUTABLE_PATH="${MINITOOLS_POWER_HELPER_PATH:?Set MINITOOLS_POWER_HELPER_PATH.}"
 APP_DIR="${2:-"$ROOT/dist/$APP_NAME.app"}"
 CONTENTS_DIR="$APP_DIR/Contents"
 SIGN_IDENTITY="${CODE_SIGN_IDENTITY:?Set CODE_SIGN_IDENTITY to a code-signing identity.}"
@@ -15,10 +16,20 @@ if [[ ! -f "$EXECUTABLE_PATH" ]]; then
     echo "Executable not found: $EXECUTABLE_PATH" >&2
     exit 1
 fi
+if [[ ! -f "$HELPER_EXECUTABLE_PATH" ]]; then
+    echo "Power helper executable not found: $HELPER_EXECUTABLE_PATH" >&2
+    exit 1
+fi
 
 rm -rf "$APP_DIR"
-mkdir -p "$CONTENTS_DIR/MacOS" "$CONTENTS_DIR/Resources"
+mkdir -p \
+    "$CONTENTS_DIR/MacOS" \
+    "$CONTENTS_DIR/Resources" \
+    "$CONTENTS_DIR/Library/LaunchDaemons"
 cp "$EXECUTABLE_PATH" "$CONTENTS_DIR/MacOS/$EXECUTABLE_NAME"
+cp "$HELPER_EXECUTABLE_PATH" "$CONTENTS_DIR/MacOS/MiniToolsPowerHelper"
+cp "$ROOT/Support/com.omzcj.minitools.power-helper.plist" \
+    "$CONTENTS_DIR/Library/LaunchDaemons/com.omzcj.minitools.power-helper.plist"
 cp "$ROOT/Support/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT/Support/Assets/AppIcon.icns" "$CONTENTS_DIR/Resources/AppIcon.icns"
 cp "$ROOT/Support/Assets/SmartisanStatusIcon.png" \
@@ -39,7 +50,11 @@ elif [[ "$SIGN_IDENTITY" == "-" ]]; then
     SIGN_ARGUMENTS+=(--options runtime --timestamp=none)
 fi
 
+codesign "${SIGN_ARGUMENTS[@]}" \
+    --identifier "com.omzcj.minitools.power-helper" \
+    "$CONTENTS_DIR/MacOS/MiniToolsPowerHelper"
 codesign "${SIGN_ARGUMENTS[@]}" "$APP_DIR"
+codesign --verify --strict "$CONTENTS_DIR/MacOS/MiniToolsPowerHelper"
 codesign --verify --strict "$APP_DIR"
 
 DESIGNATED_REQUIREMENT="$(codesign -d -r- "$APP_DIR" 2>&1)"

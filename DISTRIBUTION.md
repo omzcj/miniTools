@@ -5,8 +5,8 @@
 推送格式为 `vYYYY.MM.DD.N` 的标签后，`.github/workflows/release.yml` 会自动：
 
 1. 校验标签日期与 `Support/Info.plist` 一致并运行测试。
-2. 分别构建 arm64 和 x86_64 可执行文件，合成为通用应用。
-3. 使用 Developer ID Application、Hardened Runtime 和安全时间戳签署应用。
+2. 分别构建 arm64 和 x86_64 主程序及合盖运行 helper，合成为通用应用。
+3. 使用 Developer ID Application、Hardened Runtime 和安全时间戳先签署 helper，再签署应用。
 4. 上传 Apple 公证服务，等待通过并将 ticket staple 到应用。
 5. 校验签名、Gatekeeper 和公证 ticket，再生成最终 ZIP、SHA-256 和 GitHub Release。
 
@@ -48,6 +48,10 @@ Tap 的定时 Autobump 工作流发现新版本后，会自动创建更新 Cask 
 ```bash
 brew install --cask omzcj/omzcj/minitools
 ```
+
+合盖运行的 LaunchDaemon 通过 `SMAppService` 从应用包内注册。Cask 必须把应用安装到
+`/Applications`，不能把 helper 单独复制到系统目录；升级时保持 Bundle ID、Team ID、helper
+label 和签名身份不变，才能复用已有后台项目批准。
 
 ## Gatekeeper
 

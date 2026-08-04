@@ -3,6 +3,7 @@ import SwiftUI
 private enum SettingsCategory: String, CaseIterable, Identifiable {
     case featurePanel
     case windowManagement
+    case closedLidRunning
     case mouseBindings
     case cursorAnimation
 
@@ -12,6 +13,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .featurePanel: "工具面板"
         case .windowManagement: "窗口管理"
+        case .closedLidRunning: "合盖运行"
         case .mouseBindings: "鼠标侧键"
         case .cursorAnimation: "定位动画"
         }
@@ -23,6 +25,8 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
             "配置统一面板的唤起方式与转换参数。"
         case .windowManagement:
             "配置窗口布局、跨屏操作与全局快捷键。"
+        case .closedLidRunning:
+            "配置合盖运行时长与安全保护。"
         case .mouseBindings:
             "为 Button 4、Button 5 分配点击和方向拖动动作。"
         case .cursorAnimation:
@@ -34,6 +38,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .featurePanel: "hammer"
         case .windowManagement: "macwindow"
+        case .closedLidRunning: "laptopcomputer"
         case .mouseBindings: "computermouse"
         case .cursorAnimation: "cursorarrow.rays"
         }
@@ -45,11 +50,13 @@ struct SettingsSceneRoot: View {
 
     var body: some View {
         if let shortcutCoordinator = context.shortcutCoordinator,
-           let mouseBindingCoordinator = context.mouseBindingCoordinator {
+           let mouseBindingCoordinator = context.mouseBindingCoordinator,
+           let closedLidRunningController = context.closedLidRunningController {
             SettingsView(
                 settings: context.settings,
                 shortcutCoordinator: shortcutCoordinator,
                 mouseBindingCoordinator: mouseBindingCoordinator,
+                closedLidRunningController: closedLidRunningController,
                 previewCursorHighlight: context.previewCursorHighlight
             )
         } else {
@@ -63,6 +70,7 @@ struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var shortcutCoordinator: GlobalShortcutCoordinator
     @ObservedObject var mouseBindingCoordinator: MouseBindingCoordinator
+    @ObservedObject var closedLidRunningController: ClosedLidRunningController
     let previewCursorHighlight: (CursorHighlightStyle) -> Void
     @State private var selectedCategory: SettingsCategory? = .featurePanel
 
@@ -80,6 +88,7 @@ struct SettingsView: View {
                 settings: settings,
                 shortcutCoordinator: shortcutCoordinator,
                 mouseBindingCoordinator: mouseBindingCoordinator,
+                closedLidRunningController: closedLidRunningController,
                 previewCursorHighlight: previewCursorHighlight
             )
             .id(selectedCategory)
@@ -94,6 +103,7 @@ private struct SettingsCategoryDetail: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var shortcutCoordinator: GlobalShortcutCoordinator
     @ObservedObject var mouseBindingCoordinator: MouseBindingCoordinator
+    @ObservedObject var closedLidRunningController: ClosedLidRunningController
     let previewCursorHighlight: (CursorHighlightStyle) -> Void
     @State private var showsCompactTitle = false
 
@@ -108,6 +118,8 @@ private struct SettingsCategoryDetail: View {
                 featurePanelSettings
             case .windowManagement:
                 windowManagementSettings
+            case .closedLidRunning:
+                closedLidRunningSettings
             case .mouseBindings:
                 MouseBindingSettingsView(
                     settings: settings,
@@ -192,6 +204,72 @@ private struct SettingsCategoryDetail: View {
             Text("跨屏操作")
         } footer: {
             Text("快捷键修改后立即生效。窗口操作需要辅助功能权限。")
+        }
+    }
+
+    @ViewBuilder
+    private var closedLidRunningSettings: some View {
+        Section("运行设置") {
+            LabeledContent {
+                Picker("", selection: Binding(
+                    get: { settings.closedLidMaximumDuration },
+                    set: settings.updateClosedLidMaximumDuration
+                )) {
+                    ForEach(ClosedLidMaximumDuration.allCases) { duration in
+                        Text(duration.title).tag(duration)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 190)
+            } label: {
+                settingsLabel(
+                    title: "最长时长",
+                    subtitle: "达到时限后自动关闭"
+                )
+            }
+        }
+
+        Section {
+            LabeledContent {
+                helperStatusControl
+                    .frame(width: 190, alignment: .trailing)
+            } label: {
+                settingsLabel(
+                    title: "服务状态",
+                    subtitle: "用于控制 MacBook 合盖后的系统睡眠"
+                )
+            }
+        } header: {
+            Text("后台服务")
+        } footer: {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("开盖、低电量、严重过热或运行异常时自动关闭。")
+                if let error = closedLidRunningController.lastError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var helperStatusControl: some View {
+        switch closedLidRunningController.helperState {
+        case .enabled:
+            Label("已启用", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        case .awaitingApproval:
+            Button("前往批准") {
+                closedLidRunningController.openHelperApproval()
+            }
+        case .notEnabled:
+            Button("启用") {
+                closedLidRunningController.enableHelper()
+            }
+        case .unavailable, .missing:
+            Text(closedLidRunningController.helperState.title)
+                .foregroundStyle(.secondary)
         }
     }
 

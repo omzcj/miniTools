@@ -4,10 +4,12 @@ import AppKit
 final class StatusMenuController: NSObject, NSMenuDelegate {
     var onOpenPanel: (() -> Void)?
     var onOpenSettings: (() -> Void)?
+    var onToggleClosedLidRunning: (() -> Void)?
     var onMenuWillOpen: (() -> Void)?
 
     private var statusItem: NSStatusItem?
     private var panelItem: NSMenuItem?
+    private var closedLidRunningItem: NSMenuItem?
 
     func start() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -25,6 +27,16 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         panelItem.image = AppArtwork.hammerIcon(size: NSSize(width: 15, height: 15))
         menu.addItem(panelItem)
         self.panelItem = panelItem
+
+        let closedLidRunningItem = NSMenuItem(
+            title: "合盖运行",
+            action: #selector(toggleClosedLidRunning),
+            keyEquivalent: ""
+        )
+        closedLidRunningItem.target = self
+        closedLidRunningItem.image = menuIcon(systemName: "laptopcomputer")
+        menu.addItem(closedLidRunningItem)
+        self.closedLidRunningItem = closedLidRunningItem
 
         menu.addItem(.separator())
 
@@ -61,11 +73,24 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     func update(
         settings: AppSettings,
-        shortcutCoordinator: GlobalShortcutCoordinator
+        shortcutCoordinator: GlobalShortcutCoordinator,
+        closedLidRunningController: ClosedLidRunningController
     ) {
         panelItem?.title = shortcutCoordinator.panelError == nil
             ? "显示（\(settings.panelShortcut.displayName)）"
             : "显示：快捷键冲突"
+        closedLidRunningItem?.state = if closedLidRunningController.isBusy {
+            .mixed
+        } else if closedLidRunningController.isEnabled {
+            .on
+        } else {
+            .off
+        }
+        closedLidRunningItem?.isEnabled = !closedLidRunningController.isBusy
+        closedLidRunningItem?.toolTip = closedLidRunningController.lastError
+        statusItem?.button?.image = statusBarIcon(
+            isClosedLidRunning: closedLidRunningController.isEnabled
+        )
     }
 
     func menuWillOpen(_ menu: NSMenu) {
@@ -78,6 +103,10 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         onOpenSettings?()
+    }
+
+    @objc private func toggleClosedLidRunning() {
+        onToggleClosedLidRunning?()
     }
 
     @objc private func terminate() {
@@ -93,8 +122,8 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         return image
     }
 
-    private func statusBarIcon() -> NSImage? {
-        let image = AppArtwork.hammerIcon(size: NSSize(width: 18, height: 18))
+    private func statusBarIcon(isClosedLidRunning: Bool = false) -> NSImage? {
+        let image = AppArtwork.hammerStatusIcon(isActive: isClosedLidRunning)
         image?.accessibilityDescription = "miniTools"
         return image
     }

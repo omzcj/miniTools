@@ -10,6 +10,7 @@ final class AppSettings: ObservableObject {
         static let cursorHighlightStyles = "cursorHighlightStyles"
         static let mouseBindings = "mouseBindings"
         static let mouseDragThresholdRatio = "mouseDragThresholdRatio"
+        static let closedLidMaximumDuration = "closedLidMaximumDuration"
         static let legacyMouseDragThreshold = "mouseDragThreshold"
         static let restoredHikariCursorStyle = "restoredHikariCursorStyleV1"
 
@@ -26,6 +27,7 @@ final class AppSettings: ObservableObject {
     @Published private(set) var cursorHighlightStyles: Set<CursorHighlightStyle>
     @Published private(set) var mouseBindings: [MouseBindingKey: AppCommand]
     @Published private(set) var mouseDragThresholdRatio: Double
+    @Published private(set) var closedLidMaximumDuration: ClosedLidMaximumDuration
     @Published var compressionQuality: Double {
         didSet {
             defaults.set(compressionQuality, forKey: Keys.compressionQuality)
@@ -52,6 +54,8 @@ final class AppSettings: ObservableObject {
         cursorHighlightStyles = loadedCursorHighlightStyles
         mouseBindings = Self.loadMouseBindings(defaults: defaults)
         mouseDragThresholdRatio = Self.loadMouseDragThresholdRatio(defaults: defaults)
+        closedLidMaximumDuration = defaults.string(forKey: Keys.closedLidMaximumDuration)
+            .flatMap(ClosedLidMaximumDuration.init(rawValue:)) ?? .eightHours
 
         let storedQuality = defaults.double(forKey: Keys.compressionQuality)
         compressionQuality = storedQuality == 0 ? 0.7 : storedQuality
@@ -111,6 +115,12 @@ final class AppSettings: ObservableObject {
         guard normalized != mouseDragThresholdRatio else { return }
         mouseDragThresholdRatio = normalized
         defaults.set(normalized, forKey: Keys.mouseDragThresholdRatio)
+    }
+
+    func updateClosedLidMaximumDuration(_ duration: ClosedLidMaximumDuration) {
+        guard duration != closedLidMaximumDuration else { return }
+        closedLidMaximumDuration = duration
+        defaults.set(duration.rawValue, forKey: Keys.closedLidMaximumDuration)
     }
 
     @discardableResult

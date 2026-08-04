@@ -139,7 +139,7 @@ jobs:
             NOTES="$RUNNER_TEMP/release-notes.md"
             printf '%s\n\n%s\n' \
               'This build is signed with Developer ID and notarized by Apple.' \
-              'Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring.' \
+              'Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring. Closed-lid running requires one-time approval for the bundled background helper.' \
               > "$NOTES"
 
             gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
