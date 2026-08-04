@@ -213,7 +213,9 @@ private struct SettingsCategoryDetail: View {
             LabeledContent {
                 Picker("", selection: Binding(
                     get: { settings.closedLidMaximumDuration },
-                    set: settings.updateClosedLidMaximumDuration
+                    set: { duration in
+                        settings.updateClosedLidMaximumDuration(duration)
+                    }
                 )) {
                     ForEach(ClosedLidMaximumDuration.allCases) { duration in
                         Text(duration.title).tag(duration)
