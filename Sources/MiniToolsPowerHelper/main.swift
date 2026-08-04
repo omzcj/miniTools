@@ -195,14 +195,14 @@ private final class ListenerDelegate: NSObject, NSXPCListenerDelegate, @unchecke
     }
 }
 
-let state = PowerState()
+private let state = PowerState()
 state.queue.sync {
     if state.ownsSleepDisable() {
         state.restore(reason: "helper launch recovery")
     }
 }
 
-let delegate = ListenerDelegate(state: state)
+private let delegate = ListenerDelegate(state: state)
 let listener = NSXPCListener(machServiceName: PowerHelperIPC.machServiceName)
 listener.delegate = delegate
 listener.resume()
