@@ -188,42 +188,26 @@ final class AppSettingsTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let settings = AppSettings(defaults: defaults)
 
-        XCTAssertEqual(settings.closedLidMaximumDuration, .eightHours)
         XCTAssertEqual(settings.closedLidBatteryThreshold, .twenty)
 
-        settings.updateClosedLidMaximumDuration(.fourHours)
         settings.updateClosedLidBatteryThreshold(.forty)
 
         let restored = AppSettings(defaults: defaults)
-        XCTAssertEqual(restored.closedLidMaximumDuration, .fourHours)
         XCTAssertEqual(restored.closedLidBatteryThreshold, .forty)
     }
 
-    @MainActor
-    func testMigratesUnlimitedDefaultDurationToEightHours() throws {
-        let (defaults, suiteName) = try makeDefaults()
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        defaults.set(
-            ClosedLidMaximumDuration.unlimited.rawValue,
-            forKey: "closedLidMaximumDuration"
-        )
-
-        let settings = AppSettings(defaults: defaults)
-
-        XCTAssertEqual(settings.closedLidMaximumDuration, .eightHours)
+    func testClosedLidRunDurationMenuOrderAndIntervals() {
         XCTAssertEqual(
-            defaults.string(forKey: "closedLidMaximumDuration"),
-            ClosedLidMaximumDuration.eightHours.rawValue
-        )
-        XCTAssertFalse(ClosedLidMaximumDuration.settingsCases.contains(.unlimited))
-        XCTAssertEqual(
-            ClosedLidMaximumDuration.eightHours.statusMenuTitle,
-            "合盖运行 8 小时"
+            ClosedLidRunDuration.menuCases,
+            [.unlimited, .oneHour, .twoHours, .fourHours, .eightHours]
         )
         XCTAssertEqual(
-            ClosedLidMaximumDuration.unlimited.statusMenuTitle,
-            "合盖运行 不限时"
+            ClosedLidRunDuration.menuCases.map(\.title),
+            ["不限时", "1 小时", "2 小时", "4 小时", "8 小时"]
         )
+        XCTAssertNil(ClosedLidRunDuration.unlimited.interval)
+        XCTAssertEqual(ClosedLidRunDuration.oneHour.interval, 60 * 60)
+        XCTAssertEqual(ClosedLidRunDuration.eightHours.interval, 8 * 60 * 60)
     }
 
     private func makeDefaults() throws -> (UserDefaults, String) {

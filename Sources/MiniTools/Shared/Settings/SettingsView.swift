@@ -26,7 +26,7 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .windowManagement:
             "配置窗口布局、跨屏操作与全局快捷键。"
         case .closedLidRunning:
-            "配置合盖运行时长与安全保护。"
+            "配置合盖运行安全保护与查看关闭记录。"
         case .mouseBindings:
             "为 Button 4、Button 5 分配点击和方向拖动动作。"
         case .cursorAnimation:
@@ -209,28 +209,7 @@ private struct SettingsCategoryDetail: View {
 
     @ViewBuilder
     private var closedLidRunningSettings: some View {
-        Section("运行设置") {
-            LabeledContent {
-                Picker("", selection: Binding(
-                    get: { settings.closedLidMaximumDuration },
-                    set: { duration in
-                        settings.updateClosedLidMaximumDuration(duration)
-                    }
-                )) {
-                    ForEach(ClosedLidMaximumDuration.settingsCases) { duration in
-                        Text(duration.title).tag(duration)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(width: 190)
-            } label: {
-                settingsLabel(
-                    title: "最长时长",
-                    subtitle: "达到时限后自动关闭"
-                )
-            }
-
+        Section("安全保护") {
             LabeledContent {
                 Picker("", selection: Binding(
                     get: { settings.closedLidBatteryThreshold },
@@ -247,7 +226,7 @@ private struct SettingsCategoryDetail: View {
                 .frame(width: 190)
             } label: {
                 settingsLabel(
-                    title: "低电量保护",
+                    title: "触发电量",
                     subtitle: "使用电池且低于该电量时自动关闭"
                 )
             }
@@ -263,17 +242,6 @@ private struct SettingsCategoryDetail: View {
                     subtitle: "用于控制 MacBook 合盖后的系统睡眠"
                 )
             }
-            if let summary = closedLidRunningController.lastStopSummary {
-                LabeledContent {
-                    Text(summary)
-                        .foregroundStyle(.secondary)
-                } label: {
-                    settingsLabel(
-                        title: "最近关闭",
-                        subtitle: "记录最近一次会话的关闭原因"
-                    )
-                }
-            }
         } header: {
             Text("后台服务")
         } footer: {
@@ -283,6 +251,35 @@ private struct SettingsCategoryDetail: View {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)
                 }
+            }
+        }
+
+        if !closedLidRunningController.recentClosedSessions.isEmpty {
+            Section {
+                ForEach(
+                    Array(closedLidRunningController.recentClosedSessions.enumerated()),
+                    id: \.offset
+                ) { _, session in
+                    LabeledContent {
+                        if let stoppedAt = session.stoppedAt {
+                            Text(stoppedAt.formatted(
+                                Date.FormatStyle(date: .abbreviated, time: .shortened)
+                            ))
+                            .foregroundStyle(.secondary)
+                        }
+                    } label: {
+                        settingsLabel(
+                            title: session.stopReason?.title ?? "未知原因",
+                            subtitle: session.duration.map {
+                                "运行方式：\($0.title)"
+                            } ?? "历史会话"
+                        )
+                    }
+                }
+            } header: {
+                Text("最近关闭")
+            } footer: {
+                Text("最多保留最近 5 次关闭时间与原因。")
             }
         }
     }
