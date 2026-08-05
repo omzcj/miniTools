@@ -113,14 +113,26 @@ final class TextTransformsTests: XCTestCase {
         )
     }
 
+    func testSortCountLinesReportsEveryLineFrequency() {
+        XCTAssertEqual(
+            TextTransforms.sortCountLines("b\na\nb\nc\na\nb\n"),
+            "2\ta\n3\tb\n1\tc"
+        )
+    }
+
     func testCatalogRecommendsStructuredTransformsWithoutDuplicatingThem() throws {
         let jsonSections = TextActionCatalog.sections(for: #"{"b":2,"a":1}"#)
         XCTAssertEqual(jsonSections.first?.id, "recommended")
-        XCTAssertEqual(jsonSections.first?.actions.map(\.id), ["json.format"])
         XCTAssertEqual(
-            jsonSections.flatMap(\.actions).filter { $0.id == "json.format" }.count,
-            1
+            jsonSections.first?.actions.map(\.id),
+            ["json.format", "json.sort"]
         )
+        for recommendedID in ["json.format", "json.sort"] {
+            XCTAssertEqual(
+                jsonSections.flatMap(\.actions).filter { $0.id == recommendedID }.count,
+                1
+            )
+        }
         XCTAssertTrue(jsonSections.flatMap(\.actions).contains { $0.id == "json.minify" })
 
         let token = "\(base64URL(#"{"alg":"none"}"#)).\(base64URL(#"{"sub":"1"}"#)).signature"

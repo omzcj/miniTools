@@ -57,9 +57,9 @@ final class EncodingConversionPanelViewModelTests: XCTestCase {
             initialSelectedActionID: sections.first?.actions.first?.id
         )
 
-        XCTAssertNil(viewModel.directShortcutNumber(forActionID: "json.sort"))
-        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.encode"), 4)
-        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.decode"), 5)
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "json.sort"), 2)
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.encode"), 5)
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.decode"), 6)
 
         viewModel.updateSearchQuery("json sort")
 
