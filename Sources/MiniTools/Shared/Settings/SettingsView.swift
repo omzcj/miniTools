@@ -217,7 +217,7 @@ private struct SettingsCategoryDetail: View {
                         settings.updateClosedLidMaximumDuration(duration)
                     }
                 )) {
-                    ForEach(ClosedLidMaximumDuration.allCases) { duration in
+                    ForEach(ClosedLidMaximumDuration.settingsCases) { duration in
                         Text(duration.title).tag(duration)
                     }
                 }
@@ -228,6 +228,27 @@ private struct SettingsCategoryDetail: View {
                 settingsLabel(
                     title: "最长时长",
                     subtitle: "达到时限后自动关闭"
+                )
+            }
+
+            LabeledContent {
+                Picker("", selection: Binding(
+                    get: { settings.closedLidBatteryThreshold },
+                    set: { threshold in
+                        settings.updateClosedLidBatteryThreshold(threshold)
+                    }
+                )) {
+                    ForEach(ClosedLidBatteryThreshold.allCases) { threshold in
+                        Text(threshold.title).tag(threshold)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(width: 190)
+            } label: {
+                settingsLabel(
+                    title: "低电量保护",
+                    subtitle: "使用电池且低于该电量时自动关闭"
                 )
             }
         }
@@ -257,7 +278,7 @@ private struct SettingsCategoryDetail: View {
             Text("后台服务")
         } footer: {
             VStack(alignment: .leading, spacing: 5) {
-                Text("开盖、低电量、严重过热或运行异常时自动关闭。")
+                Text("开盖、电量低于设定值、严重过热或运行异常时自动关闭。")
                 if let error = closedLidRunningController.lastError {
                     Label(error, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.orange)

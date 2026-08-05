@@ -7,6 +7,13 @@ enum ClosedLidMaximumDuration: String, CaseIterable, Codable, Identifiable, Send
     case twelveHours
     case unlimited
 
+    static let settingsCases: [Self] = [
+        .twoHours,
+        .fourHours,
+        .eightHours,
+        .twelveHours
+    ]
+
     var id: Self { self }
 
     var title: String {
@@ -27,5 +34,9 @@ enum ClosedLidMaximumDuration: String, CaseIterable, Codable, Identifiable, Send
         case .twelveHours: 12 * 60 * 60
         case .unlimited: nil
         }
+    }
+
+    var statusMenuTitle: String {
+        "合盖运行 \(title)"
     }
 }
