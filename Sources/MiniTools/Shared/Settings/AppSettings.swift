@@ -11,6 +11,7 @@ final class AppSettings: ObservableObject {
         static let mouseBindings = "mouseBindings"
         static let mouseDragThresholdRatio = "mouseDragThresholdRatio"
         static let closedLidMaximumDuration = "closedLidMaximumDuration"
+        static let closedLidBatteryThreshold = "closedLidBatteryThreshold"
         static let legacyMouseDragThreshold = "mouseDragThreshold"
         static let restoredHikariCursorStyle = "restoredHikariCursorStyleV1"
 
@@ -28,6 +29,7 @@ final class AppSettings: ObservableObject {
     @Published private(set) var mouseBindings: [MouseBindingKey: AppCommand]
     @Published private(set) var mouseDragThresholdRatio: Double
     @Published private(set) var closedLidMaximumDuration: ClosedLidMaximumDuration
+    @Published private(set) var closedLidBatteryThreshold: ClosedLidBatteryThreshold
     @Published var compressionQuality: Double {
         didSet {
             defaults.set(compressionQuality, forKey: Keys.compressionQuality)
@@ -54,8 +56,20 @@ final class AppSettings: ObservableObject {
         cursorHighlightStyles = loadedCursorHighlightStyles
         mouseBindings = Self.loadMouseBindings(defaults: defaults)
         mouseDragThresholdRatio = Self.loadMouseDragThresholdRatio(defaults: defaults)
-        closedLidMaximumDuration = defaults.string(forKey: Keys.closedLidMaximumDuration)
+        let storedClosedLidDuration = defaults.string(forKey: Keys.closedLidMaximumDuration)
             .flatMap(ClosedLidMaximumDuration.init(rawValue:)) ?? .eightHours
+        if storedClosedLidDuration == .unlimited {
+            closedLidMaximumDuration = .eightHours
+            defaults.set(
+                ClosedLidMaximumDuration.eightHours.rawValue,
+                forKey: Keys.closedLidMaximumDuration
+            )
+        } else {
+            closedLidMaximumDuration = storedClosedLidDuration
+        }
+        closedLidBatteryThreshold = ClosedLidBatteryThreshold(
+            rawValue: defaults.integer(forKey: Keys.closedLidBatteryThreshold)
+        ) ?? .twenty
 
         let storedQuality = defaults.double(forKey: Keys.compressionQuality)
         compressionQuality = storedQuality == 0 ? 0.7 : storedQuality
@@ -118,9 +132,16 @@ final class AppSettings: ObservableObject {
     }
 
     func updateClosedLidMaximumDuration(_ duration: ClosedLidMaximumDuration) {
+        guard duration != .unlimited else { return }
         guard duration != closedLidMaximumDuration else { return }
         closedLidMaximumDuration = duration
         defaults.set(duration.rawValue, forKey: Keys.closedLidMaximumDuration)
+    }
+
+    func updateClosedLidBatteryThreshold(_ threshold: ClosedLidBatteryThreshold) {
+        guard threshold != closedLidBatteryThreshold else { return }
+        closedLidBatteryThreshold = threshold
+        defaults.set(threshold.rawValue, forKey: Keys.closedLidBatteryThreshold)
     }
 
     @discardableResult

@@ -182,6 +182,50 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(AppSettings(defaults: defaults).cursorHighlightStyles.isEmpty)
     }
 
+    @MainActor
+    func testPersistsClosedLidSafetySettings() throws {
+        let (defaults, suiteName) = try makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.closedLidMaximumDuration, .eightHours)
+        XCTAssertEqual(settings.closedLidBatteryThreshold, .twenty)
+
+        settings.updateClosedLidMaximumDuration(.fourHours)
+        settings.updateClosedLidBatteryThreshold(.forty)
+
+        let restored = AppSettings(defaults: defaults)
+        XCTAssertEqual(restored.closedLidMaximumDuration, .fourHours)
+        XCTAssertEqual(restored.closedLidBatteryThreshold, .forty)
+    }
+
+    @MainActor
+    func testMigratesUnlimitedDefaultDurationToEightHours() throws {
+        let (defaults, suiteName) = try makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(
+            ClosedLidMaximumDuration.unlimited.rawValue,
+            forKey: "closedLidMaximumDuration"
+        )
+
+        let settings = AppSettings(defaults: defaults)
+
+        XCTAssertEqual(settings.closedLidMaximumDuration, .eightHours)
+        XCTAssertEqual(
+            defaults.string(forKey: "closedLidMaximumDuration"),
+            ClosedLidMaximumDuration.eightHours.rawValue
+        )
+        XCTAssertFalse(ClosedLidMaximumDuration.settingsCases.contains(.unlimited))
+        XCTAssertEqual(
+            ClosedLidMaximumDuration.eightHours.statusMenuTitle,
+            "合盖运行 8 小时"
+        )
+        XCTAssertEqual(
+            ClosedLidMaximumDuration.unlimited.statusMenuTitle,
+            "合盖运行 不限时"
+        )
+    }
+
     private func makeDefaults() throws -> (UserDefaults, String) {
         let suiteName = "MiniToolsTests.AppSettings.\(UUID().uuidString)"
         return (try XCTUnwrap(UserDefaults(suiteName: suiteName)), suiteName)

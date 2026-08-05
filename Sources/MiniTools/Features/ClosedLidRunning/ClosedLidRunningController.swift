@@ -24,7 +24,6 @@ enum ClosedLidHelperState: Equatable {
 
 @MainActor
 final class ClosedLidRunningController: ObservableObject {
-    static let batteryFloorPercent = 20
     private static let logger = Logger(
         subsystem: "com.omzcj.minitools",
         category: "ClosedLidRunning"
@@ -35,6 +34,7 @@ final class ClosedLidRunningController: ObservableObject {
     @Published private(set) var helperState: ClosedLidHelperState = .unavailable
     @Published private(set) var lastError: String?
     @Published private(set) var lastSession: ClosedLidSessionHistory?
+    @Published private(set) var activeDuration: ClosedLidMaximumDuration?
 
     var onStateChanged: (() -> Void)?
 
@@ -47,7 +47,7 @@ final class ClosedLidRunningController: ObservableObject {
     private var approvalTask: Task<Void, Never>?
     private var enabledAt: Date?
     private var hasObservedClosedLid = false
-    private var enableAfterApproval = false
+    private var enableAfterApprovalDuration: ClosedLidMaximumDuration?
 
     init(
         settings: AppSettings,
@@ -95,24 +95,32 @@ final class ClosedLidRunningController: ObservableObject {
         }
     }
 
-    func toggle() {
+    func toggle(duration: ClosedLidMaximumDuration) {
         guard !isBusy else { return }
         if isEnabled {
-            disable(reason: .manual)
+            if activeDuration == duration {
+                disable(reason: .manual)
+            } else {
+                let startedAt = Date()
+                activeDuration = duration
+                enabledAt = startedAt
+                lastSession = historyStore.recordStarted(at: startedAt)
+                notifyStateChanged()
+            }
         } else if helperState == .enabled {
-            enable()
+            enable(duration: duration)
         } else {
-            enableHelper(startSessionWhenReady: true)
+            enableHelper(startSessionDuration: duration)
         }
     }
 
-    func enableHelper(startSessionWhenReady: Bool = false) {
+    func enableHelper(startSessionDuration: ClosedLidMaximumDuration? = nil) {
         guard managesHelper else {
             helperState = .unavailable
             notifyStateChanged()
             return
         }
-        enableAfterApproval = startSessionWhenReady
+        enableAfterApprovalDuration = startSessionDuration
         lastError = nil
         do {
             try service.register()
@@ -126,10 +134,12 @@ final class ClosedLidRunningController: ObservableObject {
             pollForApproval()
         case .notEnabled:
             lastError = "后台服务未能注册"
-            enableAfterApproval = false
-        case .enabled where startSessionWhenReady:
-            enableAfterApproval = false
-            enable()
+            enableAfterApprovalDuration = nil
+        case .enabled:
+            if let startSessionDuration {
+                enableAfterApprovalDuration = nil
+                enable(duration: startSessionDuration)
+            }
         default:
             break
         }
@@ -141,7 +151,7 @@ final class ClosedLidRunningController: ObservableObject {
         pollForApproval()
     }
 
-    private func enable() {
+    private func enable(duration: ClosedLidMaximumDuration) {
         isBusy = true
         lastError = nil
         notifyStateChanged()
@@ -157,6 +167,7 @@ final class ClosedLidRunningController: ObservableObject {
             switch result {
             case .success:
                 isEnabled = true
+                activeDuration = duration
                 let startedAt = Date()
                 enabledAt = startedAt
                 lastSession = historyStore.recordStarted(at: startedAt)
@@ -225,6 +236,7 @@ final class ClosedLidRunningController: ObservableObject {
                     if lastSession?.isActive != true {
                         lastSession = historyStore.recordStarted(at: startedAt)
                     }
+                    activeDuration = settings.closedLidMaximumDuration
                     hasObservedClosedLid = ClosedLidSafetyMonitor.snapshot().isLidClosed == true
                     startMonitoring()
                 }
@@ -261,7 +273,7 @@ final class ClosedLidRunningController: ObservableObject {
 
         if snapshot.isOnBattery,
            let batteryPercent = snapshot.batteryPercent,
-           batteryPercent < Self.batteryFloorPercent {
+           batteryPercent < settings.closedLidBatteryThreshold.rawValue {
             disable(reason: .lowBattery)
             return
         }
@@ -271,7 +283,7 @@ final class ClosedLidRunningController: ObservableObject {
             return
         }
 
-        if let maximumInterval = settings.closedLidMaximumDuration.interval,
+        if let maximumInterval = activeDuration?.interval,
            let enabledAt,
            Date().timeIntervalSince(enabledAt) >= maximumInterval {
             disable(reason: .timeLimit)
@@ -311,6 +323,7 @@ final class ClosedLidRunningController: ObservableObject {
 
     private func setDisabledState(reason: ClosedLidStopReason? = nil) {
         isEnabled = false
+        activeDuration = nil
         enabledAt = nil
         hasObservedClosedLid = false
         monitorTask?.cancel()
@@ -344,9 +357,10 @@ final class ClosedLidRunningController: ObservableObject {
                 refreshHelperState()
                 notifyStateChanged()
                 if helperState != .awaitingApproval {
-                    if helperState == .enabled, enableAfterApproval {
-                        enableAfterApproval = false
-                        enable()
+                    if helperState == .enabled,
+                       let duration = enableAfterApprovalDuration {
+                        enableAfterApprovalDuration = nil
+                        enable(duration: duration)
                     }
                     return
                 }

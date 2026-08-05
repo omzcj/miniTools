@@ -4,12 +4,14 @@ import AppKit
 final class StatusMenuController: NSObject, NSMenuDelegate {
     var onOpenPanel: (() -> Void)?
     var onOpenSettings: (() -> Void)?
-    var onToggleClosedLidRunning: (() -> Void)?
+    var onToggleClosedLidRunning: ((ClosedLidMaximumDuration) -> Void)?
     var onMenuWillOpen: (() -> Void)?
 
     private var statusItem: NSStatusItem?
     private var panelItem: NSMenuItem?
-    private var closedLidRunningItem: NSMenuItem?
+    private var configuredClosedLidRunningItem: NSMenuItem?
+    private var unlimitedClosedLidRunningItem: NSMenuItem?
+    private var configuredClosedLidDuration: ClosedLidMaximumDuration = .eightHours
 
     func start() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -28,15 +30,25 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(panelItem)
         self.panelItem = panelItem
 
-        let closedLidRunningItem = NSMenuItem(
-            title: "合盖运行",
-            action: #selector(toggleClosedLidRunning),
+        let configuredClosedLidRunningItem = NSMenuItem(
+            title: configuredClosedLidDuration.statusMenuTitle,
+            action: #selector(toggleConfiguredClosedLidRunning),
             keyEquivalent: ""
         )
-        closedLidRunningItem.target = self
-        closedLidRunningItem.image = menuIcon(systemName: "laptopcomputer")
-        menu.addItem(closedLidRunningItem)
-        self.closedLidRunningItem = closedLidRunningItem
+        configuredClosedLidRunningItem.target = self
+        configuredClosedLidRunningItem.image = menuIcon(systemName: "laptopcomputer")
+        menu.addItem(configuredClosedLidRunningItem)
+        self.configuredClosedLidRunningItem = configuredClosedLidRunningItem
+
+        let unlimitedClosedLidRunningItem = NSMenuItem(
+            title: ClosedLidMaximumDuration.unlimited.statusMenuTitle,
+            action: #selector(toggleUnlimitedClosedLidRunning),
+            keyEquivalent: ""
+        )
+        unlimitedClosedLidRunningItem.target = self
+        unlimitedClosedLidRunningItem.image = menuIcon(systemName: "infinity")
+        menu.addItem(unlimitedClosedLidRunningItem)
+        self.unlimitedClosedLidRunningItem = unlimitedClosedLidRunningItem
 
         menu.addItem(.separator())
 
@@ -79,16 +91,36 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         panelItem?.title = shortcutCoordinator.panelError == nil
             ? "显示（\(settings.panelShortcut.displayName)）"
             : "显示：快捷键冲突"
-        closedLidRunningItem?.state = if closedLidRunningController.isBusy {
+        configuredClosedLidDuration = if closedLidRunningController.isEnabled,
+                                         let activeDuration = closedLidRunningController.activeDuration,
+                                         activeDuration != .unlimited {
+            activeDuration
+        } else {
+            settings.closedLidMaximumDuration
+        }
+        configuredClosedLidRunningItem?.title = configuredClosedLidDuration.statusMenuTitle
+        configuredClosedLidRunningItem?.state = if closedLidRunningController.isBusy {
             .mixed
-        } else if closedLidRunningController.isEnabled {
+        } else if closedLidRunningController.isEnabled,
+                  closedLidRunningController.activeDuration == configuredClosedLidDuration {
             .on
         } else {
             .off
         }
-        closedLidRunningItem?.isEnabled = !closedLidRunningController.isBusy
-        closedLidRunningItem?.toolTip = closedLidRunningController.lastError
-            ?? closedLidRunningController.lastStopSummary
+        unlimitedClosedLidRunningItem?.state = if closedLidRunningController.isBusy {
+            .mixed
+        } else if closedLidRunningController.isEnabled,
+                  closedLidRunningController.activeDuration == .unlimited {
+            .on
+        } else {
+            .off
+        }
+        let items = [configuredClosedLidRunningItem, unlimitedClosedLidRunningItem]
+        for item in items {
+            item?.isEnabled = !closedLidRunningController.isBusy
+            item?.toolTip = closedLidRunningController.lastError
+                ?? closedLidRunningController.lastStopSummary
+        }
         statusItem?.button?.image = statusBarIcon(
             isClosedLidRunning: closedLidRunningController.isEnabled
         )
@@ -106,8 +138,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         onOpenSettings?()
     }
 
-    @objc private func toggleClosedLidRunning() {
-        onToggleClosedLidRunning?()
+    @objc private func toggleConfiguredClosedLidRunning() {
+        onToggleClosedLidRunning?(configuredClosedLidDuration)
+    }
+
+    @objc private func toggleUnlimitedClosedLidRunning() {
+        onToggleClosedLidRunning?(.unlimited)
     }
 
     @objc private func terminate() {
