@@ -7,7 +7,7 @@
 ## 当前能力
 
 - 文本识别与转换：URL、Base64、JSON Escape / Unescape、Unix 时间戳
-- 文本工具：MD5、SHA256、SHA512、JSON Sort、Sort → Uniq、当前时间戳
+- 文本工具：MD5、SHA256、SHA512、JSON Sort、Sort → Uniq、Sort → Count、当前时间戳
 - 文本转图片：二维码 PNG
 - 图片转文本：二维码识别、中文/英文 OCR
 - 图片处理：PNG / JPEG 转换、可配置质量的 JPEG 压缩

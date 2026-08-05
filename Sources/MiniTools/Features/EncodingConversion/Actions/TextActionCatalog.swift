@@ -36,6 +36,14 @@ enum TextActionCatalog {
                 searchKeywords: ["json", "format", "pretty", "beautify"],
                 recommended: true
             ) { try TextTransforms.formatJSON(text) })
+            recommended.append(textAction(
+                id: "json.sort",
+                title: "JSON Sort",
+                subtitle: "检测到合法 JSON，递归排序键并格式化",
+                systemImage: "arrow.up.arrow.down",
+                searchKeywords: ["json", "sort", "format", "pretty"],
+                recommended: true
+            ) { try TextTransforms.sortJSON(text) })
         }
         if TextTransforms.detectedRFC3339Date(text) != nil {
             recommended.append(textAction(
@@ -220,6 +228,15 @@ enum TextActionCatalog {
                 TextTransforms.uniqueLinesPreservingOrder(text)
             },
             textAction(
+                id: "lines.count",
+                title: "Sort → Count",
+                subtitle: "按行排序并统计出现次数",
+                systemImage: "number.square",
+                searchKeywords: ["sort", "uniq", "count", "duplicate", "frequency", "lines"]
+            ) {
+                TextTransforms.sortCountLines(text)
+            },
+            textAction(
                 id: "timestamp.now",
                 title: "当前时间戳",
                 subtitle: "生成秒级 Unix 时间戳",
@@ -237,7 +254,7 @@ enum TextActionCatalog {
             ) {
                 TextTransforms.currentTimestampMilliseconds()
             }
-        ]
+        ].filter { !recommendedIDs.contains($0.id) }
 
         let qrCode = ToolAction(
             id: "qr.generate",

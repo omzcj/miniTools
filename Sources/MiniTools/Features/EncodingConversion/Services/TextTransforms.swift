@@ -148,6 +148,22 @@ enum TextTransforms {
         return lines.filter { seen.insert($0).inserted }.joined(separator: "\n")
     }
 
+    static func sortCountLines(_ text: String) -> String {
+        var lines = normalizedLines(text)
+        if text.last?.isNewline == true, lines.last == "" {
+            lines.removeLast()
+        }
+
+        var counts: [String: Int] = [:]
+        for line in lines {
+            counts[line, default: 0] += 1
+        }
+        return counts.keys
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+            .map { "\(counts[$0, default: 0])\t\($0)" }
+            .joined(separator: "\n")
+    }
+
     static func isPercentEncoded(_ text: String) -> Bool {
         text.range(of: #"%[0-9a-fA-F]{2}"#, options: .regularExpression) != nil
             && text.removingPercentEncoding != nil
