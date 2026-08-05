@@ -49,6 +49,37 @@ final class EncodingConversionPanelViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testSearchReassignsJSONAndBase64ShortcutsFromOne() throws {
+        let sections = TextActionCatalog.sections(for: #"{"b": 1, "a": 2}"#)
+        let viewModel = EncodingConversionPanelViewModel(
+            compressionQuality: 0.7,
+            initialSections: sections,
+            initialSelectedActionID: sections.first?.actions.first?.id
+        )
+
+        XCTAssertNil(viewModel.directShortcutNumber(forActionID: "json.sort"))
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.encode"), 4)
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.decode"), 5)
+
+        viewModel.updateSearchQuery("json sort")
+
+        XCTAssertEqual(viewModel.visibleActions.map(\.id), ["json.sort"])
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "json.sort"), 1)
+        XCTAssertEqual(viewModel.actionID(forDirectShortcutIndex: 0), "json.sort")
+
+        viewModel.updateSearchQuery("base64")
+
+        XCTAssertEqual(
+            viewModel.visibleActions.map(\.id),
+            ["base64.encode", "base64.decode"]
+        )
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.encode"), 1)
+        XCTAssertEqual(viewModel.directShortcutNumber(forActionID: "base64.decode"), 2)
+        XCTAssertEqual(viewModel.actionID(forDirectShortcutIndex: 0), "base64.encode")
+        XCTAssertEqual(viewModel.actionID(forDirectShortcutIndex: 1), "base64.decode")
+    }
+
+    @MainActor
     func testShowsAtMostTwoRecentActionsWithoutRecommendations() {
         let recentStore = RecentEncodingActionStore()
         recentStore.record("hash.sha256")
