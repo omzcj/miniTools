@@ -33,8 +33,8 @@ final class ClosedLidRunningController: ObservableObject {
     @Published private(set) var isBusy = false
     @Published private(set) var helperState: ClosedLidHelperState = .unavailable
     @Published private(set) var lastError: String?
-    @Published private(set) var lastSession: ClosedLidSessionHistory?
-    @Published private(set) var activeDuration: ClosedLidMaximumDuration?
+    @Published private(set) var recentClosedSessions: [ClosedLidSessionHistory]
+    @Published private(set) var activeDuration: ClosedLidRunDuration?
 
     var onStateChanged: (() -> Void)?
 
@@ -47,7 +47,7 @@ final class ClosedLidRunningController: ObservableObject {
     private var approvalTask: Task<Void, Never>?
     private var enabledAt: Date?
     private var hasObservedClosedLid = false
-    private var enableAfterApprovalDuration: ClosedLidMaximumDuration?
+    private var enableAfterApprovalDuration: ClosedLidRunDuration?
 
     init(
         settings: AppSettings,
@@ -57,19 +57,12 @@ final class ClosedLidRunningController: ObservableObject {
         self.settings = settings
         self.client = client
         self.historyStore = historyStore
-        lastSession = historyStore.history
+        recentClosedSessions = historyStore.recentClosedSessions
         service = SMAppService.daemon(plistName: PowerHelperIPC.plistName)
     }
 
     var lastStopSummary: String? {
-        guard let stoppedAt = lastSession?.stoppedAt,
-              let stopReason = lastSession?.stopReason else {
-            return nil
-        }
-        let timestamp = stoppedAt.formatted(
-            Date.FormatStyle(date: .abbreviated, time: .shortened)
-        )
-        return "\(timestamp) · \(stopReason.title)"
+        recentClosedSessions.first?.stopSummary
     }
 
     func start() {
@@ -95,7 +88,7 @@ final class ClosedLidRunningController: ObservableObject {
         }
     }
 
-    func toggle(duration: ClosedLidMaximumDuration) {
+    func toggle(duration: ClosedLidRunDuration) {
         guard !isBusy else { return }
         if isEnabled {
             if activeDuration == duration {
@@ -104,7 +97,7 @@ final class ClosedLidRunningController: ObservableObject {
                 let startedAt = Date()
                 activeDuration = duration
                 enabledAt = startedAt
-                lastSession = historyStore.recordStarted(at: startedAt)
+                historyStore.recordStarted(duration: duration, at: startedAt)
                 notifyStateChanged()
             }
         } else if helperState == .enabled {
@@ -114,7 +107,7 @@ final class ClosedLidRunningController: ObservableObject {
         }
     }
 
-    func enableHelper(startSessionDuration: ClosedLidMaximumDuration? = nil) {
+    func enableHelper(startSessionDuration: ClosedLidRunDuration? = nil) {
         guard managesHelper else {
             helperState = .unavailable
             notifyStateChanged()
@@ -151,7 +144,7 @@ final class ClosedLidRunningController: ObservableObject {
         pollForApproval()
     }
 
-    private func enable(duration: ClosedLidMaximumDuration) {
+    private func enable(duration: ClosedLidRunDuration) {
         isBusy = true
         lastError = nil
         notifyStateChanged()
@@ -170,7 +163,7 @@ final class ClosedLidRunningController: ObservableObject {
                 activeDuration = duration
                 let startedAt = Date()
                 enabledAt = startedAt
-                lastSession = historyStore.recordStarted(at: startedAt)
+                historyStore.recordStarted(duration: duration, at: startedAt)
                 hasObservedClosedLid = ClosedLidSafetyMonitor.snapshot().isLidClosed == true
                 startMonitoring()
                 Self.logger.notice("Closed-lid running session started")
@@ -231,17 +224,22 @@ final class ClosedLidRunningController: ObservableObject {
             if result.1 {
                 if !isEnabled {
                     isEnabled = true
-                    let startedAt = Date()
+                    let recoveredSession = historyStore.activeSession
+                    let recoveredDuration = recoveredSession?.duration ?? .oneHour
+                    let startedAt = recoveredSession?.startedAt ?? Date()
                     enabledAt = startedAt
-                    if lastSession?.isActive != true {
-                        lastSession = historyStore.recordStarted(at: startedAt)
+                    if recoveredSession == nil {
+                        historyStore.recordStarted(
+                            duration: recoveredDuration,
+                            at: startedAt
+                        )
                     }
-                    activeDuration = settings.closedLidMaximumDuration
+                    activeDuration = recoveredDuration
                     hasObservedClosedLid = ClosedLidSafetyMonitor.snapshot().isLidClosed == true
                     startMonitoring()
                 }
             } else {
-                let reason: ClosedLidStopReason? = lastSession?.isActive == true
+                let reason: ClosedLidStopReason? = historyStore.activeSession != nil
                     ? .serviceRecovery
                     : nil
                 setDisabledState(reason: reason)
@@ -329,7 +327,8 @@ final class ClosedLidRunningController: ObservableObject {
         monitorTask?.cancel()
         monitorTask = nil
         if let reason {
-            lastSession = historyStore.recordStopped(reason: reason)
+            historyStore.recordStopped(reason: reason)
+            recentClosedSessions = historyStore.recentClosedSessions
             Self.logger.notice("Closed-lid running session stopped: \(reason.rawValue, privacy: .public)")
         }
     }

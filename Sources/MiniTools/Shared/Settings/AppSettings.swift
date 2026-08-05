@@ -10,7 +10,6 @@ final class AppSettings: ObservableObject {
         static let cursorHighlightStyles = "cursorHighlightStyles"
         static let mouseBindings = "mouseBindings"
         static let mouseDragThresholdRatio = "mouseDragThresholdRatio"
-        static let closedLidMaximumDuration = "closedLidMaximumDuration"
         static let closedLidBatteryThreshold = "closedLidBatteryThreshold"
         static let legacyMouseDragThreshold = "mouseDragThreshold"
         static let restoredHikariCursorStyle = "restoredHikariCursorStyleV1"
@@ -28,7 +27,6 @@ final class AppSettings: ObservableObject {
     @Published private(set) var cursorHighlightStyles: Set<CursorHighlightStyle>
     @Published private(set) var mouseBindings: [MouseBindingKey: AppCommand]
     @Published private(set) var mouseDragThresholdRatio: Double
-    @Published private(set) var closedLidMaximumDuration: ClosedLidMaximumDuration
     @Published private(set) var closedLidBatteryThreshold: ClosedLidBatteryThreshold
     @Published var compressionQuality: Double {
         didSet {
@@ -56,17 +54,6 @@ final class AppSettings: ObservableObject {
         cursorHighlightStyles = loadedCursorHighlightStyles
         mouseBindings = Self.loadMouseBindings(defaults: defaults)
         mouseDragThresholdRatio = Self.loadMouseDragThresholdRatio(defaults: defaults)
-        let storedClosedLidDuration = defaults.string(forKey: Keys.closedLidMaximumDuration)
-            .flatMap(ClosedLidMaximumDuration.init(rawValue:)) ?? .eightHours
-        if storedClosedLidDuration == .unlimited {
-            closedLidMaximumDuration = .eightHours
-            defaults.set(
-                ClosedLidMaximumDuration.eightHours.rawValue,
-                forKey: Keys.closedLidMaximumDuration
-            )
-        } else {
-            closedLidMaximumDuration = storedClosedLidDuration
-        }
         closedLidBatteryThreshold = ClosedLidBatteryThreshold(
             rawValue: defaults.integer(forKey: Keys.closedLidBatteryThreshold)
         ) ?? .twenty
@@ -129,13 +116,6 @@ final class AppSettings: ObservableObject {
         guard normalized != mouseDragThresholdRatio else { return }
         mouseDragThresholdRatio = normalized
         defaults.set(normalized, forKey: Keys.mouseDragThresholdRatio)
-    }
-
-    func updateClosedLidMaximumDuration(_ duration: ClosedLidMaximumDuration) {
-        guard duration != .unlimited else { return }
-        guard duration != closedLidMaximumDuration else { return }
-        closedLidMaximumDuration = duration
-        defaults.set(duration.rawValue, forKey: Keys.closedLidMaximumDuration)
     }
 
     func updateClosedLidBatteryThreshold(_ threshold: ClosedLidBatteryThreshold) {
