@@ -103,7 +103,15 @@ struct EncodingConversionPanelView: View {
                                 .padding(.bottom, 3)
 
                             ForEach(section.actions) { action in
-                                actionRow(action)
+                                let shortcutNumber = viewModel.directShortcutNumber(
+                                    forActionID: action.id
+                                )
+                                actionRow(action, shortcutNumber: shortcutNumber)
+                                    .id(ActionRowRenderID(
+                                        actionID: action.id,
+                                        searchQuery: viewModel.normalizedSearchQuery,
+                                        shortcutNumber: shortcutNumber
+                                    ))
                                     .id(action.id)
                             }
                         }
@@ -120,9 +128,11 @@ struct EncodingConversionPanelView: View {
         }
     }
 
-    private func actionRow(_ action: ToolAction) -> some View {
+    private func actionRow(
+        _ action: ToolAction,
+        shortcutNumber: Int?
+    ) -> some View {
         let selected = viewModel.selectedActionID == action.id
-        let index = viewModel.directShortcutNumber(forActionID: action.id)
 
         return HStack(spacing: 12) {
             Image(systemName: action.systemImage)
@@ -150,20 +160,25 @@ struct EncodingConversionPanelView: View {
             }
             Spacer()
 
-            if let index, index <= 9 {
-                Text("\(index)")
+            if let shortcutNumber, shortcutNumber <= 9 {
+                Text("\(shortcutNumber)")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.secondary)
                     .frame(width: 22, height: 22)
                     .background(Color.primary.opacity(0.09))
                     .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                    .id("shortcut-\(viewModel.normalizedSearchQuery)-\(action.id)-\(index)")
             }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .featurePanelSelection(selected, cornerRadius: 9)
         .padding(.horizontal, 8)
+    }
+
+    private struct ActionRowRenderID: Hashable {
+        let actionID: String
+        let searchQuery: String
+        let shortcutNumber: Int?
     }
 
     private func sectionHeader(_ section: ToolActionSection) -> String {
