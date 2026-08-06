@@ -88,23 +88,25 @@ final class ClosedLidRunningController: ObservableObject {
         }
     }
 
-    func toggle(duration: ClosedLidRunDuration) {
+    func select(duration: ClosedLidRunDuration) {
         guard !isBusy else { return }
         if isEnabled {
-            if activeDuration == duration {
-                disable(reason: .manual)
-            } else {
-                let startedAt = Date()
-                activeDuration = duration
-                enabledAt = startedAt
-                historyStore.recordStarted(duration: duration, at: startedAt)
-                notifyStateChanged()
-            }
+            guard activeDuration != duration else { return }
+            let startedAt = Date()
+            activeDuration = duration
+            enabledAt = startedAt
+            historyStore.recordStarted(duration: duration, at: startedAt)
+            notifyStateChanged()
         } else if helperState == .enabled {
             enable(duration: duration)
         } else {
             enableHelper(startSessionDuration: duration)
         }
+    }
+
+    func disable() {
+        guard isEnabled, !isBusy else { return }
+        disable(reason: .manual)
     }
 
     func enableHelper(startSessionDuration: ClosedLidRunDuration? = nil) {
