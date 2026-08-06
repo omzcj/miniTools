@@ -23,7 +23,7 @@ CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
 APP_VERSION="$APP_VERSION" \
 APP_BUILD="${APP_BUILD:-1}" \
 APP_OUTPUT_PATH="$APP_DIR" \
-    "$ROOT/Scripts/build-universal-app.sh" "$APP_VERSION"
+    "$ROOT/Scripts/build-release-app.sh" "$APP_VERSION"
 
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"
 codesign --verify --strict --verbose=2 \

@@ -39,9 +39,9 @@ jobs:
       - name: Run tests
         run: swift test
 
-      - name: Cross-compile Intel release
+      - name: Build arm64 release
         run: |
           swift build \
             -c release \
-            --triple x86_64-apple-macosx26.0 \
-            --scratch-path .build/ci-x86_64
+            --triple arm64-apple-macosx26.0 \
+            --scratch-path .build/ci-arm64
