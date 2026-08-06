@@ -21,7 +21,7 @@
 
 ## 运行与打包
 
-要求 macOS 26 或更高版本，以及 Xcode Command Line Tools。
+要求 macOS 26 或更高版本、Apple Silicon (M 系列) Mac，以及 Xcode Command Line Tools。
 
 本地调试请使用固定路径、稳定签名的应用包：
 
@@ -72,7 +72,7 @@ swift test
 
 ## 发行与 Homebrew
 
-推送 `vYYYY.MM.DD.N` 标签后，GitHub Actions 会构建 arm64 / x86_64 通用应用，使用
+推送 `vYYYY.MM.DD.N` 标签后，GitHub Actions 会构建 arm64 应用，使用
 Developer ID 签名并提交 Apple 公证，再生成 GitHub Release 和 SHA-256。Homebrew Tap
 会定期检查 Release，通过 Autobump PR 更新 Cask。签名配置和发版步骤见
 [DISTRIBUTION.md](DISTRIBUTION.md)。

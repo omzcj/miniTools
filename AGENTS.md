@@ -131,7 +131,7 @@ CODE_SIGN_IDENTITY="Apple Development: Name (TEAMID)" ./Scripts/build-app.sh
 
 `Scripts/package-release.sh` 只接受 Developer ID Application 身份，并生成启用 Hardened Runtime 和安全时间戳的通用发行包；`Scripts/notarize-release.sh` 负责上传 Apple 公证、staple ticket、验证 Gatekeeper 并重新生成最终 ZIP 和 SHA-256。不要把本地 Apple Development 签名用于公开发行，也不要让发行流程回退到 ad-hoc。
 
-合盖运行 helper 必须和主应用分别生成 arm64/x86_64 通用二进制，先签署 helper，再签署外层应用。正式 helper 仅由 `/Applications/miniTools.app` 管理；`dist/miniTools.app` 不得注册或查询正式后台服务。
+项目仅支持 Apple Silicon，主应用和合盖运行 helper 只生成 arm64 二进制，不再构建 x86_64。先签署 helper，再签署外层应用。正式 helper 仅由 `/Applications/miniTools.app` 管理；`dist/miniTools.app` 不得注册或查询正式后台服务。
 
 ## 最低验证要求
 
@@ -149,8 +149,8 @@ git diff --check
 | UI、快捷键、AX、鼠标监听 | `./Scripts/run-debug.sh`，手动覆盖相关键盘路径和权限状态。 |
 | Info.plist | `plutil -lint Support/Info.plist`。 |
 | Shell 脚本 | `bash -n Scripts/*.sh`。 |
-| 架构或依赖 | `swift build -c release --triple x86_64-apple-macosx26.0 --scratch-path .build/ci-x86_64`。 |
-| 发行打包 | 校验 ZIP 的 SHA-256、`lipo -archs` 同时包含 arm64/x86_64，并检查 `codesign`、`stapler validate` 与 `spctl --assess`。不要启动发行包代替固定路径的稳定签名调试包。 |
+| 架构或依赖 | `swift build -c release --triple arm64-apple-macosx26.0 --scratch-path .build/ci-arm64`。 |
+| 发行打包 | 校验 ZIP 的 SHA-256、`lipo -archs` 为 arm64，并检查 `codesign`、`stapler validate` 与 `spctl --assess`。不要启动发行包代替固定路径的稳定签名调试包。 |
 
 若环境不允许完成某项运行时验证，交付时必须明确写出未验证项，不能把“编译通过”描述成“功能已验证”。
 

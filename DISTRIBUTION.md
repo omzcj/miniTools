@@ -5,7 +5,7 @@
 推送格式为 `vYYYY.MM.DD.N` 的标签后，`.github/workflows/release.yml` 会自动：
 
 1. 校验标签日期与 `Support/Info.plist` 一致并运行测试。
-2. 分别构建 arm64 和 x86_64 主程序及合盖运行 helper，合成为通用应用。
+2. 构建 arm64 主程序及合盖运行 helper（仅支持 Apple Silicon，不构建 x86_64）。
 3. 使用 Developer ID Application、Hardened Runtime 和安全时间戳先签署 helper，再签署应用。
 4. 上传 Apple 公证服务，等待通过并将 ticket staple 到应用。
 5. 校验签名、Gatekeeper 和公证 ticket，再生成最终 ZIP、SHA-256 和 GitHub Release。
