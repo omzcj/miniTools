@@ -196,7 +196,9 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(restored.closedLidBatteryThreshold, .forty)
     }
 
+    @MainActor
     func testClosedLidRunDurationMenuOrderAndIntervals() {
+        XCTAssertEqual(StatusMenuController.closedLidRunningOffTitle, "关闭")
         XCTAssertEqual(
             ClosedLidRunDuration.menuCases,
             [.unlimited, .oneHour, .twoHours, .fourHours, .eightHours]

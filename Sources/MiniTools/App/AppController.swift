@@ -72,8 +72,11 @@ final class AppController: NSObject {
         statusMenuController.onOpenSettings = { [weak self] in
             self?.showSettings()
         }
-        statusMenuController.onToggleClosedLidRunning = { [weak self] duration in
-            self?.closedLidRunningController.toggle(duration: duration)
+        statusMenuController.onDisableClosedLidRunning = { [weak self] in
+            self?.closedLidRunningController.disable()
+        }
+        statusMenuController.onSelectClosedLidDuration = { [weak self] duration in
+            self?.closedLidRunningController.select(duration: duration)
         }
         statusMenuController.onMenuWillOpen = { [weak self] in
             self?.closedLidRunningController.refresh()

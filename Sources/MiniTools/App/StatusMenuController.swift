@@ -4,12 +4,16 @@ import AppKit
 final class StatusMenuController: NSObject, NSMenuDelegate {
     var onOpenPanel: (() -> Void)?
     var onOpenSettings: (() -> Void)?
-    var onToggleClosedLidRunning: ((ClosedLidRunDuration) -> Void)?
+    var onDisableClosedLidRunning: (() -> Void)?
+    var onSelectClosedLidDuration: ((ClosedLidRunDuration) -> Void)?
     var onMenuWillOpen: (() -> Void)?
+
+    static let closedLidRunningOffTitle = "关闭"
 
     private var statusItem: NSStatusItem?
     private var panelItem: NSMenuItem?
     private var closedLidRunningItem: NSMenuItem?
+    private var disableClosedLidRunningItem: NSMenuItem?
     private var closedLidDurationItems: [ClosedLidRunDuration: NSMenuItem] = [:]
 
     func start() {
@@ -36,6 +40,16 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         )
         closedLidRunningItem.image = menuIcon(systemName: "laptopcomputer")
         let durationMenu = NSMenu(title: "合盖运行")
+        let disableClosedLidRunningItem = NSMenuItem(
+            title: Self.closedLidRunningOffTitle,
+            action: #selector(disableClosedLidRunning),
+            keyEquivalent: ""
+        )
+        disableClosedLidRunningItem.target = self
+        durationMenu.addItem(disableClosedLidRunningItem)
+        durationMenu.addItem(.separator())
+        self.disableClosedLidRunningItem = disableClosedLidRunningItem
+
         for duration in ClosedLidRunDuration.menuCases {
             let durationItem = NSMenuItem(
                 title: duration.title,
@@ -106,6 +120,13 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
         closedLidRunningItem?.isEnabled = !isBusy
         closedLidRunningItem?.toolTip = tooltip
+        disableClosedLidRunningItem?.state = if !isBusy, !isEnabled {
+            .on
+        } else {
+            .off
+        }
+        disableClosedLidRunningItem?.isEnabled = !isBusy
+        disableClosedLidRunningItem?.toolTip = tooltip
 
         for (duration, item) in closedLidDurationItems {
             item.state = if !isBusy,
@@ -139,7 +160,11 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
               let duration = ClosedLidRunDuration(rawValue: rawValue) else {
             return
         }
-        onToggleClosedLidRunning?(duration)
+        onSelectClosedLidDuration?(duration)
+    }
+
+    @objc private func disableClosedLidRunning() {
+        onDisableClosedLidRunning?()
     }
 
     @objc private func terminate() {
