@@ -46,7 +46,6 @@ final class ClosedLidRunningController: ObservableObject {
     private var operationTask: Task<Void, Never>?
     private var approvalTask: Task<Void, Never>?
     private var enabledAt: Date?
-    private var hasObservedClosedLid = false
     private var enableAfterApprovalDuration: ClosedLidRunDuration?
 
     init(
@@ -166,7 +165,6 @@ final class ClosedLidRunningController: ObservableObject {
                 let startedAt = Date()
                 enabledAt = startedAt
                 historyStore.recordStarted(duration: duration, at: startedAt)
-                hasObservedClosedLid = ClosedLidSafetyMonitor.snapshot().isLidClosed == true
                 startMonitoring()
                 Self.logger.notice("Closed-lid running session started")
             case .ownedByAnotherProcess:
@@ -237,7 +235,6 @@ final class ClosedLidRunningController: ObservableObject {
                         )
                     }
                     activeDuration = recoveredDuration
-                    hasObservedClosedLid = ClosedLidSafetyMonitor.snapshot().isLidClosed == true
                     startMonitoring()
                 }
             } else {
@@ -264,13 +261,6 @@ final class ClosedLidRunningController: ObservableObject {
 
     private func evaluateSafety() async {
         let snapshot = ClosedLidSafetyMonitor.snapshot()
-        if snapshot.isLidClosed == true {
-            hasObservedClosedLid = true
-        } else if snapshot.isLidClosed == false, hasObservedClosedLid {
-            disable(reason: .lidOpened)
-            return
-        }
-
         if snapshot.isOnBattery,
            let batteryPercent = snapshot.batteryPercent,
            batteryPercent < settings.closedLidBatteryThreshold.rawValue {
@@ -325,7 +315,6 @@ final class ClosedLidRunningController: ObservableObject {
         isEnabled = false
         activeDuration = nil
         enabledAt = nil
-        hasObservedClosedLid = false
         monitorTask?.cancel()
         monitorTask = nil
         if let reason {

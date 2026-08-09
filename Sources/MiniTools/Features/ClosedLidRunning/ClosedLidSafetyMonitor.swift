@@ -1,11 +1,9 @@
 import Foundation
-import IOKit
 import IOKit.ps
 
 struct ClosedLidSafetySnapshot {
     let isOnBattery: Bool
     let batteryPercent: Int?
-    let isLidClosed: Bool?
     let thermalState: ProcessInfo.ThermalState
 }
 
@@ -15,7 +13,6 @@ enum ClosedLidSafetyMonitor {
         return ClosedLidSafetySnapshot(
             isOnBattery: power.isOnBattery,
             batteryPercent: power.percent,
-            isLidClosed: lidIsClosed(),
             thermalState: ProcessInfo.processInfo.thermalState
         )
     }
@@ -45,24 +42,5 @@ enum ClosedLidSafetyMonitor {
             return (sourceState == kIOPSBatteryPowerValue, percent)
         }
         return (false, nil)
-    }
-
-    private static func lidIsClosed() -> Bool? {
-        let service = IOServiceGetMatchingService(
-            kIOMainPortDefault,
-            IOServiceMatching("IOPMrootDomain")
-        )
-        guard service != IO_OBJECT_NULL else { return nil }
-        defer { IOObjectRelease(service) }
-
-        guard let property = IORegistryEntryCreateCFProperty(
-            service,
-            "AppleClamshellState" as CFString,
-            kCFAllocatorDefault,
-            0
-        )?.takeRetainedValue() else {
-            return nil
-        }
-        return property as? Bool
     }
 }
