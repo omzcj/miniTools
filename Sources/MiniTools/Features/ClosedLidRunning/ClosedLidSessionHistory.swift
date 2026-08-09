@@ -2,7 +2,6 @@ import Foundation
 
 enum ClosedLidStopReason: String, Codable, Equatable, Sendable {
     case manual
-    case lidOpened
     case lowBattery
     case thermalPressure
     case timeLimit
@@ -11,7 +10,6 @@ enum ClosedLidStopReason: String, Codable, Equatable, Sendable {
     var title: String {
         switch self {
         case .manual: "手动关闭"
-        case .lidOpened: "开盖后自动关闭"
         case .lowBattery: "电量过低后自动关闭"
         case .thermalPressure: "温度过高后自动关闭"
         case .timeLimit: "达到运行时长后自动关闭"
@@ -44,12 +42,25 @@ private struct ClosedLidSessionHistoryArchive: Codable {
     let recentClosedSessions: [ClosedLidSessionHistory]
 }
 
+private struct LegacyClosedLidSessionHistoryArchive: Decodable {
+    struct ActiveSession: Decodable {
+        let startedAt: Date
+        let stoppedAt: Date?
+        let duration: ClosedLidRunDuration?
+    }
+
+    let activeSession: ActiveSession?
+}
+
 @MainActor
 final class ClosedLidSessionHistoryStore {
     static let maximumRecentSessionCount = 5
 
-    private static let storageKey = "closedLidSessionHistoryArchiveV2"
-    private static let legacyStorageKey = "closedLidSessionHistory"
+    private static let storageKey = "closedLidSessionHistoryArchiveV3"
+    private static let obsoleteStorageKeys = [
+        "closedLidSessionHistoryArchiveV2",
+        "closedLidSessionHistory"
+    ]
 
     private let defaults: UserDefaults
     private(set) var activeSession: ClosedLidSessionHistory?
@@ -57,6 +68,26 @@ final class ClosedLidSessionHistoryStore {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        let legacyActiveSession = defaults
+            .data(forKey: "closedLidSessionHistoryArchiveV2")
+            .flatMap {
+                try? JSONDecoder().decode(
+                    LegacyClosedLidSessionHistoryArchive.self,
+                    from: $0
+                ).activeSession
+            }
+            .flatMap { session -> ClosedLidSessionHistory? in
+                guard session.stoppedAt == nil else { return nil }
+                return ClosedLidSessionHistory(
+                    startedAt: session.startedAt,
+                    stoppedAt: nil,
+                    stopReason: nil,
+                    duration: session.duration
+                )
+            }
+        for key in Self.obsoleteStorageKeys {
+            defaults.removeObject(forKey: key)
+        }
 
         if let data = defaults.data(forKey: Self.storageKey),
            let archive = try? JSONDecoder().decode(
@@ -74,16 +105,8 @@ final class ClosedLidSessionHistoryStore {
             return
         }
 
-        let legacyHistory = defaults.data(forKey: Self.legacyStorageKey).flatMap {
-            try? JSONDecoder().decode(ClosedLidSessionHistory.self, from: $0)
-        }
-        if legacyHistory?.isActive == true {
-            activeSession = legacyHistory
-            recentClosedSessions = []
-        } else {
-            activeSession = nil
-            recentClosedSessions = legacyHistory.map { [$0] } ?? []
-        }
+        activeSession = legacyActiveSession
+        recentClosedSessions = []
         persist()
     }
 

@@ -48,12 +48,12 @@ final class ClosedLidSessionHistoryTests: XCTestCase {
         let store = ClosedLidSessionHistoryStore(defaults: defaults)
         let reasons: [ClosedLidStopReason] = [
             .manual,
-            .lidOpened,
             .lowBattery,
             .thermalPressure,
             .timeLimit,
             .serviceRecovery,
-            .manual
+            .manual,
+            .lowBattery
         ]
 
         for (index, reason) in reasons.enumerated() {
@@ -77,7 +77,7 @@ final class ClosedLidSessionHistoryTests: XCTestCase {
         )
         XCTAssertEqual(
             store.recentClosedSessions.compactMap(\.stopReason),
-            [.manual, .serviceRecovery, .timeLimit, .thermalPressure, .lowBattery]
+            [.lowBattery, .manual, .serviceRecovery, .timeLimit, .thermalPressure]
         )
         XCTAssertEqual(
             ClosedLidSessionHistoryStore(defaults: defaults).recentClosedSessions,
@@ -85,7 +85,7 @@ final class ClosedLidSessionHistoryTests: XCTestCase {
         )
     }
 
-    func testMigratesLegacySingleSession() throws {
+    func testDiscardsLegacySessionHistory() throws {
         let (defaults, suiteName) = try makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let legacySession = ClosedLidSessionHistory(
@@ -102,11 +102,39 @@ final class ClosedLidSessionHistoryTests: XCTestCase {
         let store = ClosedLidSessionHistoryStore(defaults: defaults)
 
         XCTAssertNil(store.activeSession)
-        XCTAssertEqual(store.recentClosedSessions, [legacySession])
-        XCTAssertEqual(
-            ClosedLidSessionHistoryStore(defaults: defaults).recentClosedSessions,
-            [legacySession]
+        XCTAssertTrue(store.recentClosedSessions.isEmpty)
+        XCTAssertNil(defaults.data(forKey: "closedLidSessionHistory"))
+    }
+
+    func testPreservesLegacyActiveSessionWhileDiscardingClosedHistory() throws {
+        let (defaults, suiteName) = try makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let activeSession = ClosedLidSessionHistory(
+            startedAt: Date(timeIntervalSince1970: 100),
+            stoppedAt: nil,
+            stopReason: nil,
+            duration: .unlimited
         )
+        let closedSession = ClosedLidSessionHistory(
+            startedAt: Date(timeIntervalSince1970: 10),
+            stoppedAt: Date(timeIntervalSince1970: 20),
+            stopReason: .manual,
+            duration: .oneHour
+        )
+        let archive = LegacyHistoryArchive(
+            activeSession: activeSession,
+            recentClosedSessions: [closedSession]
+        )
+        defaults.set(
+            try JSONEncoder().encode(archive),
+            forKey: "closedLidSessionHistoryArchiveV2"
+        )
+
+        let store = ClosedLidSessionHistoryStore(defaults: defaults)
+
+        XCTAssertEqual(store.activeSession, activeSession)
+        XCTAssertTrue(store.recentClosedSessions.isEmpty)
+        XCTAssertNil(defaults.data(forKey: "closedLidSessionHistoryArchiveV2"))
     }
 
     func testDoesNotReplaceCompletedSessionsWithoutANewStart() throws {
@@ -137,4 +165,9 @@ final class ClosedLidSessionHistoryTests: XCTestCase {
         let suiteName = "ClosedLidSessionHistoryTests.\(UUID().uuidString)"
         return (try XCTUnwrap(UserDefaults(suiteName: suiteName)), suiteName)
     }
+}
+
+private struct LegacyHistoryArchive: Codable {
+    let activeSession: ClosedLidSessionHistory?
+    let recentClosedSessions: [ClosedLidSessionHistory]
 }
