@@ -197,16 +197,9 @@ final class AppSettingsTests: XCTestCase {
     }
 
     @MainActor
-    func testClosedLidRunDurationMenuOrderAndIntervals() {
-        XCTAssertEqual(StatusMenuController.closedLidRunningOffTitle, "关闭")
-        XCTAssertEqual(
-            ClosedLidRunDuration.menuCases,
-            [.unlimited, .oneHour, .twoHours, .fourHours, .eightHours]
-        )
-        XCTAssertEqual(
-            ClosedLidRunDuration.menuCases.map(\.title),
-            ["不限时", "1 小时", "2 小时", "4 小时", "8 小时"]
-        )
+    func testClosedLidRunningMenuTitlesAndLegacyDurationIntervals() {
+        XCTAssertEqual(StatusMenuController.enableClosedLidRunningTitle, "启动合盖运行")
+        XCTAssertEqual(StatusMenuController.disableClosedLidRunningTitle, "关闭合盖运行")
         XCTAssertNil(ClosedLidRunDuration.unlimited.interval)
         XCTAssertEqual(ClosedLidRunDuration.oneHour.interval, 60 * 60)
         XCTAssertEqual(ClosedLidRunDuration.eightHours.interval, 8 * 60 * 60)

@@ -7,14 +7,6 @@ enum ClosedLidRunDuration: String, CaseIterable, Codable, Identifiable, Sendable
     case fourHours
     case eightHours
 
-    static let menuCases: [Self] = [
-        .unlimited,
-        .oneHour,
-        .twoHours,
-        .fourHours,
-        .eightHours
-    ]
-
     var id: Self { self }
 
     var title: String {
