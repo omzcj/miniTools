@@ -12,8 +12,10 @@ default_platform(:mac)
 platform :mac do
   desc "Build, sign, notarize, and optionally publish miniTools"
   lane :release do
+    root = File.expand_path("..", __dir__)
+    escaped_root = Shellwords.escape(root)
     app_version = sh(
-      "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist",
+      "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' #{Shellwords.escape(File.join(root, 'Support/Info.plist'))}",
       log: false
     ).strip
     tag = ENV["GITHUB_REF_NAME"].to_s
@@ -50,10 +52,11 @@ platform :mac do
 
     shared_macos_developer_id(
       app_identifiers: ["com.omzcj.minitools"],
-      validation_command: "bash -n Scripts/*.sh && swift test",
-      package_command: "APP_BUILD=$GITHUB_RUN_NUMBER Scripts/package-release.sh #{escaped_version}",
-      notarize_command: "Scripts/notarize-release.sh #{escaped_version}",
+      validation_command: "cd #{escaped_root} && bash -n Scripts/*.sh && swift test",
+      package_command: "cd #{escaped_root} && APP_BUILD=$GITHUB_RUN_NUMBER Scripts/package-release.sh #{escaped_version}",
+      notarize_command: "cd #{escaped_root} && Scripts/notarize-release.sh #{escaped_version}",
       release_command: <<~SHELL
+        cd #{escaped_root}
         if gh release view #{escaped_tag} >/dev/null 2>&1; then
           gh release upload #{escaped_tag} \
             dist/miniTools-#{escaped_version}.zip \
