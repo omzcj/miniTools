@@ -1,10 +1,9 @@
-require "date"
 require "shellwords"
 
 import_from_git(
   url: "https://github.com/assassinor/apple-ci.git",
   path: "fastlane/Fastfile",
-  branch: "v1.0.5"
+  branch: "v2026.08.29.2"
 )
 
 default_platform(:mac)
@@ -21,15 +20,7 @@ platform :mac do
     tag = ENV["GITHUB_REF_NAME"].to_s
 
     if ENV["GITHUB_EVENT_NAME"] == "push"
-      UI.user_error!("Release tags must use vYYYY.MM.DD.N format") unless tag.match?(/^v\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/)
-      version = tag.delete_prefix("v")
-      tagged_app_version = version.sub(/\.[1-9]\d*$/, "")
-      begin
-        Date.strptime(tagged_app_version, "%Y.%m.%d")
-      rescue Date::Error
-        UI.user_error!("Release tag contains an invalid calendar date: #{tagged_app_version}")
-      end
-      UI.user_error!("Tag date #{tagged_app_version} does not match Info.plist #{app_version}") unless tagged_app_version == app_version
+      version = apple_ci_calendar_release_version(marketing_version: app_version, tag: tag)
     else
       revision = ENV.fetch("APPLE_CI_RELEASE_REVISION", "1")
       UI.user_error!("Revision must be a positive integer") unless revision.match?(/^[1-9]\d*$/)

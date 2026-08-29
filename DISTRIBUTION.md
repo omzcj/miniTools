@@ -12,11 +12,13 @@
 
 Release workflow 使用以下 GitHub Actions Secrets：
 
-- `DEVELOPER_ID_P12_BASE64`：Developer ID Application 证书和私钥的 P12 Base64。
-- `DEVELOPER_ID_P12_PASSWORD`：P12 密码。
-- `APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64`：App Store Connect API 私钥的 Base64。
-- `APP_STORE_CONNECT_API_KEY_ID`：API Key ID。
-- `APP_STORE_CONNECT_API_ISSUER_ID`：Team API Key Issuer ID。
+- `APPLE_ASC_KEY_ID`
+- `APPLE_ASC_ISSUER_ID`
+- `APPLE_ASC_PRIVATE_KEY_BASE64`
+- `APPLE_MATCH_PASSWORD`
+- `APPLE_MATCH_GIT_PRIVATE_KEY`
+
+CI 通过只读 Fastlane Match 恢复 Developer ID 身份，不再保存项目级 P12。
 
 Release 包含：
 
@@ -29,14 +31,15 @@ Release 包含：
 CI 通过，再创建包含当日发布序号的标签：
 
 ```bash
-git tag -a v2026.07.18.1 -m "miniTools 2026.07.18.1"
-git push origin v2026.07.18.1
+git tag -s v2026.08.29.1 -m "miniTools 2026.08.29.1"
+git push origin v2026.08.29.1
 ```
 
 标签必须使用 `vYYYY.MM.DD.N`：日期部分与 Info.plist 中的三段可见版本一致，`N` 从
 `1` 开始，同一天再次发布时依次改为 `2`、`3`。GitHub Release、发布文件和 Homebrew
-Cask 使用完整四段版本；应用内显示三段日期版本。`CFBundleVersion` 在 GitHub Actions
-中使用当次 `GITHUB_RUN_NUMBER`，无需每次手动修改。
+Cask 使用完整四段版本；应用内显示三段日期版本。标签必须是签名的 annotated tag，
+其上海时区 tagger 日期也必须与版本日期一致。`CFBundleVersion` 在 GitHub Actions 中
+使用当次 `GITHUB_RUN_NUMBER`，无需每次手动修改。
 
 ## Homebrew Tap
 
