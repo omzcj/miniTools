@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   release:
-    uses: assassinor/apple-ci/.github/workflows/macos-developer-id.yml@0b5a57fa0558057e9e3e29d023cc5dbb9d188b7a
+    uses: assassinor/apple-ci/.github/workflows/macos-developer-id.yml@0223d3ff348bf4eb3251a8df356e8d05ccb2471b
     with:
       runner: macos-26
       lane: release
