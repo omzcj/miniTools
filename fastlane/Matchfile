@@ -1,0 +1,6 @@
+git_url("git@github.com:assassinor/apple-signing.git")
+git_branch("team-566UG6DQ7E")
+storage_mode("git")
+type("developer_id")
+app_identifier(["com.omzcj.minitools"])
+readonly(ENV["CI"].to_s == "true")

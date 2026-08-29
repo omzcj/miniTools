@@ -1,0 +1,71 @@
+require "date"
+require "shellwords"
+
+import_from_git(
+  url: "https://github.com/assassinor/apple-ci.git",
+  path: "fastlane/Fastfile",
+  branch: "v1.0.3"
+)
+
+default_platform(:mac)
+
+platform :mac do
+  desc "Build, sign, notarize, and optionally publish miniTools"
+  lane :release do
+    app_version = sh(
+      "/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Support/Info.plist",
+      log: false
+    ).strip
+    tag = ENV["GITHUB_REF_NAME"].to_s
+
+    if ENV["GITHUB_EVENT_NAME"] == "push"
+      UI.user_error!("Release tags must use vYYYY.MM.DD.N format") unless tag.match?(/^v\d{4}\.\d{2}\.\d{2}\.[1-9]\d*$/)
+      version = tag.delete_prefix("v")
+      tagged_app_version = version.sub(/\.[1-9]\d*$/, "")
+      begin
+        Date.strptime(tagged_app_version, "%Y.%m.%d")
+      rescue Date::Error
+        UI.user_error!("Release tag contains an invalid calendar date: #{tagged_app_version}")
+      end
+      UI.user_error!("Tag date #{tagged_app_version} does not match Info.plist #{app_version}") unless tagged_app_version == app_version
+    else
+      revision = ENV.fetch("APPLE_CI_RELEASE_REVISION", "1")
+      UI.user_error!("Revision must be a positive integer") unless revision.match?(/^[1-9]\d*$/)
+      version = "#{app_version}.#{revision}"
+      tag = "v#{version}"
+    end
+
+    ENV["VERSION"] = version
+    ENV["APP_VERSION"] = app_version
+    escaped_version = Shellwords.escape(version)
+    escaped_tag = Shellwords.escape(tag)
+    notes_path = File.join(ENV.fetch("RUNNER_TEMP", Dir.tmpdir), "miniTools-release-notes.md")
+    File.write(
+      notes_path,
+      "This build is signed with Developer ID and notarized by Apple.\n\n" \
+      "Accessibility permission is required for Safari window switching and window management; " \
+      "mouse side-button bindings also require Input Monitoring. Closed-lid running requires " \
+      "one-time approval for the bundled background helper.\n"
+    )
+
+    shared_macos_developer_id(
+      app_identifiers: ["com.omzcj.minitools"],
+      validation_command: "bash -n Scripts/*.sh && swift test",
+      package_command: "APP_BUILD=$GITHUB_RUN_NUMBER Scripts/package-release.sh #{escaped_version}",
+      notarize_command: "Scripts/notarize-release.sh #{escaped_version}",
+      release_command: <<~SHELL
+        if gh release view #{escaped_tag} >/dev/null 2>&1; then
+          gh release upload #{escaped_tag} \
+            dist/miniTools-#{escaped_version}.zip \
+            dist/miniTools-#{escaped_version}.zip.sha256 --clobber
+        else
+          gh release create #{escaped_tag} \
+            dist/miniTools-#{escaped_version}.zip \
+            dist/miniTools-#{escaped_version}.zip.sha256 \
+            --verify-tag --title "miniTools #{version}" --generate-notes \
+            --notes-file #{Shellwords.escape(notes_path)}
+        fi
+      SHELL
+    )
+  end
+end

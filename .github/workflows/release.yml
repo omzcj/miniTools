@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,147 +15,14 @@ concurrency:
 
 jobs:
   release:
-    name: Build, sign, notarize, and release
-    runs-on: macos-26
-    timeout-minutes: 60
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-
-      - name: Validate release tag
-        id: metadata
-        run: |
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[1-9][0-9]*$ ]]; then
-            echo "Release tags must use vYYYY.MM.DD.N format." >&2
-            exit 1
-          fi
-          VERSION="${GITHUB_REF_NAME#v}"
-          APP_VERSION="${VERSION%.*}"
-          PARSED_APP_VERSION="$(/bin/date -j -f '%Y.%m.%d' \
-            "$APP_VERSION" '+%Y.%m.%d' 2>/dev/null || true)"
-          if [[ "$PARSED_APP_VERSION" != "$APP_VERSION" ]]; then
-            echo "Release tag contains an invalid calendar date: $APP_VERSION" >&2
-            exit 1
-          fi
-          PLIST_VERSION="$(/usr/libexec/PlistBuddy \
-            -c 'Print :CFBundleShortVersionString' Support/Info.plist)"
-          if [[ "$PLIST_VERSION" != "$APP_VERSION" ]]; then
-            echo "Tag date $APP_VERSION does not match Info.plist $PLIST_VERSION." >&2
-            exit 1
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Run tests
-        run: swift test
-
-      - name: Import Developer ID certificate
-        env:
-          DEVELOPER_ID_P12_BASE64: ${{ secrets.DEVELOPER_ID_P12_BASE64 }}
-          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
-        run: |
-          if [[ -z "$DEVELOPER_ID_P12_BASE64" || -z "$DEVELOPER_ID_P12_PASSWORD" ]]; then
-            echo "Developer ID signing secrets are not configured." >&2
-            exit 1
-          fi
-
-          KEYCHAIN_PATH="$RUNNER_TEMP/miniTools-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
-          P12_PATH="$RUNNER_TEMP/miniTools-developer-id.p12"
-          echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
-
-          printf '%s' "$DEVELOPER_ID_P12_BASE64" | /usr/bin/base64 -D > "$P12_PATH"
-          chmod 600 "$P12_PATH"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$P12_PATH" \
-            -k "$KEYCHAIN_PATH" \
-            -P "$DEVELOPER_ID_P12_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
-
-          SIGN_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
-            | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' \
-            | head -n 1)"
-          if [[ -z "$SIGN_IDENTITY" ]]; then
-            echo "No Developer ID Application identity was imported." >&2
-            exit 1
-          fi
-
-          echo "CODE_SIGN_IDENTITY=$SIGN_IDENTITY" >> "$GITHUB_ENV"
-
-      - name: Prepare notarization credentials
-        env:
-          NOTARY_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
-          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-        run: |
-          if [[ -z "$NOTARY_KEY_BASE64" || -z "$NOTARY_KEY_ID" || -z "$NOTARY_ISSUER_ID" ]]; then
-            echo "Apple notarization secrets are not configured." >&2
-            exit 1
-          fi
-
-          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey_$NOTARY_KEY_ID.p8"
-          printf '%s' "$NOTARY_KEY_BASE64" | /usr/bin/base64 -D > "$NOTARY_KEY_PATH"
-          chmod 600 "$NOTARY_KEY_PATH"
-          echo "NOTARY_KEY_PATH=$NOTARY_KEY_PATH" >> "$GITHUB_ENV"
-
-      - name: Build, sign, and package
-        run: |
-          CODE_SIGN_IDENTITY="$CODE_SIGN_IDENTITY" \
-            APP_BUILD="$GITHUB_RUN_NUMBER" \
-            Scripts/package-release.sh "$VERSION"
-
-      - name: Notarize and staple
-        env:
-          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-        run: |
-          NOTARY_KEY_PATH="$NOTARY_KEY_PATH" \
-          NOTARY_KEY_ID="$NOTARY_KEY_ID" \
-          NOTARY_ISSUER_ID="$NOTARY_ISSUER_ID" \
-          EXPECTED_TEAM_ID="566UG6DQ7E" \
-            Scripts/notarize-release.sh "$VERSION"
-
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          FILES=(
-            "dist/miniTools-$VERSION.zip"
-            "dist/miniTools-$VERSION.zip.sha256"
-          )
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${FILES[@]}" --clobber
-          else
-            NOTES="$RUNNER_TEMP/release-notes.md"
-            printf '%s\n\n%s\n' \
-              'This build is signed with Developer ID and notarized by Apple.' \
-              'Accessibility permission is required for Safari window switching and window management; mouse side-button bindings also require Input Monitoring. Closed-lid running requires one-time approval for the bundled background helper.' \
-              > "$NOTES"
-
-            gh release create "$GITHUB_REF_NAME" "${FILES[@]}" \
-              --verify-tag \
-              --title "miniTools $VERSION" \
-              --generate-notes \
-              --notes-file "$NOTES"
-          fi
-
-      - name: Remove signing credentials
-        if: always()
-        run: |
-          if [[ -n "${SIGNING_KEYCHAIN_PATH:-}" ]]; then
-            security delete-keychain "$SIGNING_KEYCHAIN_PATH" >/dev/null 2>&1 || true
-          fi
-          rm -f \
-            "$RUNNER_TEMP/miniTools-developer-id.p12" \
-            "$RUNNER_TEMP"/AuthKey_*.p8
+    uses: assassinor/apple-ci/.github/workflows/macos-developer-id.yml@5af044e806c9d6930eb5cea01721bbcb0fe1e365
+    with:
+      runner: macos-26
+      lane: release
+      publish: ${{ github.event_name == 'push' }}
+    secrets:
+      APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+      APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+      APPLE_ASC_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_ASC_PRIVATE_KEY_BASE64 }}
+      APPLE_MATCH_PASSWORD: ${{ secrets.APPLE_MATCH_PASSWORD }}
+      APPLE_MATCH_GIT_PRIVATE_KEY: ${{ secrets.APPLE_MATCH_GIT_PRIVATE_KEY }}
