@@ -18,8 +18,17 @@ final class PowerSettingsParserTests: XCTestCase {
         )
     }
 
-    func testRejectsMissingOrUnexpectedState() {
-        XCTAssertNil(PowerSettingsParser.sleepDisabled(from: "sleep 1\n"))
+    func testTreatsMissingStateAsSystemDefault() {
+        let output = """
+        System-wide power settings:
+        Currently in use:
+         sleep                1
+        """
+
+        XCTAssertEqual(PowerSettingsParser.sleepDisabled(from: output), false)
+    }
+
+    func testRejectsUnexpectedState() {
         XCTAssertNil(PowerSettingsParser.sleepDisabled(from: "SleepDisabled 2\n"))
     }
 }

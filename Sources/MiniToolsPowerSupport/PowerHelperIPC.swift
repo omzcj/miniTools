@@ -83,7 +83,10 @@ public enum PowerSettingsParser {
             default: return nil
             }
         }
-        return nil
+        // Some macOS releases omit SleepDisabled entirely while it is at the
+        // default value. A successful `pmset -g` with no key therefore means
+        // sleep is enabled, rather than an unreadable state.
+        return false
     }
 }
 
